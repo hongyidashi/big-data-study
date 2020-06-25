@@ -10,6 +10,7 @@
     <version>1.0-SNAPSHOT</version>
     <modules>
         <module>hdfs-demo</module>
+        <module>mapreduce-demo</module>
     </modules>
 
 </project>
