@@ -11,6 +11,7 @@
     <modules>
         <module>hdfs-demo</module>
         <module>mapreduce-demo</module>
+        <module>join</module>
     </modules>
 
 </project>
