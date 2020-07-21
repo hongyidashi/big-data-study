@@ -9,7 +9,7 @@
 ## HDFS
 HDFS （Hadoop Distributed File System）是 Hadoop 下的**分布式文件系统**，具有高容错、高吞吐量等特性，可以部署在低成本的硬件上。
 ![HDFS架构](https://www.liuhe36.cn/wp-content/uploads/2013/05/2011090120573543.gif)
-使用场景：适合一次写入多次读出的场景，不支持文件的修改
+使用场景：适合一次写入多次读出的场景，不支持文件的修改!
 
 ### HDFS设计原则
 1. 文件以块(block)方式存储
