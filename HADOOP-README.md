@@ -1,6 +1,13 @@
 # Hadoop
 # hadoop核心
-1. HDFS: Hadoop Distributed File System 分布式文件系统
+1. [HDFS](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs): Hadoop Distributed File System 分布式文件系统  
++ [设计原则](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E8%AE%BE%E8%AE%A1%E5%8E%9F%E5%88%99)  
++ [HDFS组成架构](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E7%BB%84%E6%88%90%E6%9E%B6%E6%9E%84)
++ [HDFS读写数据](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E8%AF%BB%E5%86%99%E6%95%B0%E6%8D%AE)
++ [NN和2NN工作机制](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#nn%E5%92%8C2nn%E5%B7%A5%E4%BD%9C%E6%9C%BA%E5%88%B6)
++ [DataNode工作机制](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#datanode%E5%B7%A5%E4%BD%9C%E6%9C%BA%E5%88%B6)
++ [HDFS的优缺点](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9)
+
 2. YARN: Yet Another Resource Negotiator 资源管理调度系统
 3. Mapreduce：分布式运算框架
 
@@ -8,12 +15,12 @@
 
 ## HDFS
 HDFS （Hadoop Distributed File System）是 Hadoop 下的**分布式文件系统**，具有高容错、高吞吐量等特性，可以部署在低成本的硬件上。
-![HDFS架构](https://www.liuhe36.cn/wp-content/uploads/2013/05/2011090120573543.gif)
+![HDFS架构](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1595347800725&di=2dfad87fd2b4e7e3f5d72df915008993&imgtype=0&src=http%3A%2F%2Fimg.mukewang.com%2F5a1e2d4a00015ec112800720.png)
 使用场景：适合一次写入多次读出的场景，不支持文件的修改！
 
 ### HDFS设计原则
 1. 文件以块(block)方式存储
-2. 每个块带下远比多数文件系统来的大(预设128M，HDFS1.X是64M)
+2. 每个块大小远比多数文件系统的大(预设128M，HDFS1.X是64M)
 3. 通过副本机制提高可靠度和读取吞吐量
 4. 每个区块至少分到三台DataNode上（一般，对namenode进行raid1配置，对datanode进行raid5配置）
 5. 单一 master (NameNode)来协调存储元数据(metadata)
@@ -73,7 +80,7 @@ Hadoop会维护一个fsimage文件，也就是NameNode中metedata的镜像，但
 dn1收到一个 Packet 就会传给 dn2，dn2传给 dn3；dn1每传一个 Packet 会放入一个应答队列等待应答；
 8. 通知 NameNode 上传完成：当一个 Block 传输完成之后，客户端再次请求 NameNode 上传第二个 Block的服务器；
 9. 关闭输入输出流；
-10. 两个 Block 都传输完成后通知 NameNode，生成元数据。
+10. Block 传输完成后通知 NameNode，生成元数据。
 
 **在 HDFS写数据的过程中，NameNode会选择距离最近的 DataNode接收数据。**
 
