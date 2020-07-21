@@ -8,8 +8,8 @@
 + [DataNode工作机制](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#datanode%E5%B7%A5%E4%BD%9C%E6%9C%BA%E5%88%B6)
 + [HDFS的优缺点](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9)
 
-2. YARN: Yet Another Resource Negotiator 资源管理调度系统
-3. Mapreduce：分布式运算框架
+2. MapReduce：分布式运算框架
+3. YARN: Yet Another Resource Negotiator 资源管理调度系统
 
 
 
@@ -165,3 +165,56 @@ dn1收到一个 Packet 就会传给 dn2，dn2传给 dn3；dn1每传一个 Packet
 3. 并发写入、文件随机修改
 - 一个文件只能有一个写，不允许多个线程同时写；
 - 仅支持数据 append（追加），不支持文件的随机修改。
+
+
+## MapReduce 
+MapReduce 作业通过将输入的数据集拆分为独立的块，这些块由 map 以并行的方式处理，框架对 map 的输出进行排序，然后输入到 reduce 中。  
+MapReduce 框架专门用于 <key，value> 键值对处理，它将作业的输入视为一组 <key，value> 对，并生成一组 <key，value> 对作为输出。输出和输出的 key 和 value 都必须实现Writable 接口。
+![MapReduce架构图](https://img-blog.csdnimg.cn/20181228212253308.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzQzMTkzNzk3,size_16,color_FFFFFF,t_70)
+
+### MapReduce进程
+1. MrAppMaster:负责整个程序的过程调度及状态协调
+2. MapTask:负责map阶段的整个处理流程
+3. ReduceTask:负责reduce阶段的整个数据处理流程
+
+### MapReduce核心思想
+MapReduce的思想就是“**分而治之**”。  
+1. Mapper负责“分”，即把复杂的任务分解为若干个“简单的任务”来处理。“简单的任务”包含三层含义：  
+一是数据或计算的规模相对原任务要大大缩小；  
+二是就近计算原则，即任务会分配到存放着所需数据的节点上进行计算；  
+三是这些小任务可以并行计算，彼此间几乎没有依赖关系。  
+
+2. Reducer负责对map阶段的结果进行汇总。至于需要多少个Reducer，用户可以根据具体问题，通过在mapred-site.xml配置文件里设置参数mapred.reduce.tasks的值，缺省值为1。
+
+### MapReduce处理数据流程
+
+#### 总览
+![总体流程](https://img-blog.csdn.net/20170517152328185?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvYWlqaXVkdQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center)
+1. 首先Map节点对所划分的数据进行并行处理，从不同的输入数据产生相应的中间结果输出；
+2. 在进行Reduce之前，必须要等到所有的Map任务执行完成，且在进入Reduce之前会有一个过程将Map的输出结果进行汇总（shuffle），以便Reduce节点可以完全基于本节点上的数据计算最终的结果；
+3. 各个Reduce节点各自进行计算，各自负责处理不同的中间结果数据集合；
+4. 汇总所有Reduce的输出结果即可获得最终结果。
+
+#### 具体流程
+1. MapReduce提供了一个 InputFormat 对象用来读取数据，并进行切分，切分后的数据被切分成为多个 InputSplit(输入切片)，
+每一个 InputSplit 将对应一个 MapTask。注意 InputSplit 存储的并不是数据本身，而是一个分片长度和一个记录数据位置的数组；
+2. 在进入Map之前，需要通过 InputFormat 方法调用 getRecordReader() 方法生成 RecordReader，RecordReader 再通过 createKey()、
+createValue() 方法创建可供map处理的<key,value>对； RecordReader 即为从数据分块中读取数据记录并转化为键值对的类；
+3. 在Map输出中间结果之前，需要经过一个 Combiner(合并) 对象将该map输出的相同主键key下的所有键值对合并成为一个键值对；
+4. Map会将输出的中间结果发送给 Reduce 节点，在这之前，还是需要通过 Partitioner(分区) 对象进行数据分区，将数据发送到合适的 Reduce 节点上，
+避免不同Reduce节点上的数据有相关性，保证每一个 Reduce 节点可以独立完成本地计算。并且在传入 Reduce 节点之前还会自动将所有键值对按照主键值进行排序；
+5. Reduce 计算完成之后，会经过 OutputFormat 对象指定输出数据的具体格式，最终将数据输出并写回到 HDFS 上。
+
+**数据切片**：数据切片只是在逻辑上对输入进行分片，并不会在磁盘上将其切分成片进行  
+
+#### 读取数据——MapTask并行度决定机制
+MapTask的并行度决定map阶段的任务处理并发度，进而影响到整个job的处理速度；一个job的map阶段并行度由客户端在**提交job时决定**。  
+
+**MapReduce框架提供了多个 InputFormat 的实现类可使用**
+1. FileInputFormat
+
+2. CombineTextInputFormat
+
+3. CombineTextInputFormat
+
+**自定义InputFormat**
