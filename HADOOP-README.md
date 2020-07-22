@@ -1,25 +1,30 @@
 # Hadoop
 # hadoop核心
-1. [HDFS](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs): Hadoop Distributed File System 分布式文件系统  
-+ [设计原则](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E8%AE%BE%E8%AE%A1%E5%8E%9F%E5%88%99)  
-+ [HDFS组成架构](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E7%BB%84%E6%88%90%E6%9E%B6%E6%9E%84)
-+ [HDFS读写数据](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E8%AF%BB%E5%86%99%E6%95%B0%E6%8D%AE)
-+ [NN和2NN工作机制](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#nn%E5%92%8C2nn%E5%B7%A5%E4%BD%9C%E6%9C%BA%E5%88%B6)
-+ [DataNode工作机制](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#datanode%E5%B7%A5%E4%BD%9C%E6%9C%BA%E5%88%B6)
-+ [HDFS的优缺点](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9)
+1. [HDFS](#HDFS): Hadoop Distributed File System 分布式文件系统  
++ [设计原则](#设计原则)  
++ [HDFS组成架构](#HDFS组成架构)
++ [HDFS读写数据](#HDFS读写数据)
++ [NN和2NN工作机制](#NN和2NN工作机制)
++ [DataNode工作机制](#DataNode工作机制)
++ [HDFS的优缺点](#HDFS的优缺点)
 
-2. MapReduce：分布式运算框架
+2. [MapReduce](#MapReduce)：分布式运算框架
 + [MapReduce进程](#MapReduce进程)
++ [MapReduce核心思想](#MapReduce核心思想)
++ [MapReduce处理数据流程](#MapReduce处理数据流程)
+    - [总览](#总览)
+    - [具体流程](#具体流程)
+    - [读取数据](#读取数据)
 3. YARN: Yet Another Resource Negotiator 资源管理调度系统
 
 
 
-## HDFS
+## <span id="HDFS">HDFS</span>
 HDFS （Hadoop Distributed File System）是 Hadoop 下的**分布式文件系统**，具有高容错、高吞吐量等特性，可以部署在低成本的硬件上。
 ![HDFS架构](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1595347800725&di=2dfad87fd2b4e7e3f5d72df915008993&imgtype=0&src=http%3A%2F%2Fimg.mukewang.com%2F5a1e2d4a00015ec112800720.png)
 使用场景：适合一次写入多次读出的场景，不支持文件的修改！
 
-### HDFS设计原则
+### <span id="HDFS设计原则">HDFS设计原则</span>
 1. 文件以块(block)方式存储
 2. 每个块大小远比多数文件系统的大(预设128M，HDFS1.X是64M)
 3. 通过副本机制提高可靠度和读取吞吐量
@@ -27,7 +32,7 @@ HDFS （Hadoop Distributed File System）是 Hadoop 下的**分布式文件系�
 5. 单一 master (NameNode)来协调存储元数据(metadata)
 6. 客户端对文件没有缓存机制 (No data caching)
 
-### HDFS组成架构
+### <span id="HDFS组成架构">HDFS组成架构</span>
 
 1. NameNode(NN)  
 
@@ -68,7 +73,7 @@ Hadoop会维护一个fsimage文件，也就是NameNode中metedata的镜像，但
 - Client提供一些命令管理和访问HDFS
 
 
-### HDFS读写数据
+### <span id="HDFS读写数据">HDFS读写数据</span>
 **写数据**
 ![HDFS写数据流程](https://img2018.cnblogs.com/blog/1595409/201904/1595409-20190414145523723-826688867.png)
 1. 校验：客户端通过 DistributedFileSystem 模块向 NameNode 请求上传文件，NameNode 会检查目标文件是否已经存在，父目录是否存在;
@@ -105,7 +110,7 @@ dn1收到一个 Packet 就会传给 dn2，dn2传给 dn3；dn1每传一个 Packet
  如果客户端与 DataNode 节点在同一机架上，且存在所需的副本，则该副本会首读用来响应取请求。  
  如果 HDFS 群集跨越多个数据中心，则驻留在本地数据中心的副本优先于任何远程副本。  
 
-### NN和2NN工作机制
+### <span id="NN和2NN工作机制">NN和2NN工作机制</span>
 ![NN和2NN工作机制](https://img-blog.csdnimg.cn/20190709221712267.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2hlMTU5MzY5Mzg2MzY=,size_16,color_FFFFFF,t_70)
 **第一阶段：NameNode启动**
 1. 第一次启动 NameNode 格式化后，创建 Fsimage 和 Edits 文件。如果不是第一次启动，直接加载编辑日志和镜像文件到内存；
@@ -123,14 +128,14 @@ dn1收到一个 Packet 就会传给 dn2，dn2传给 dn3；dn1每传一个 Packet
 7. 拷贝 fsimage.chkpoint 到 NameNode；
 8. NameNode 将 fsimage.chkpoint 重新命名成 fsimage。
 
-### DataNode工作机制
+### <span id="DataNode工作机制">DataNode工作机制</span>
 ![DataNode工作机制](https://img2018.cnblogs.com/blog/1721350/201907/1721350-20190724121237434-1189571085.png)
 1. 一个数据块在DataNode上以文件形式存储在磁盘上，包括两个文件，一个是数据本身，一个是元数据包括数据块的长度，块数据的校验和，以及时间戳；
 2. DataNode启动后向NameNode注册，通过后，周期性（1小时）的向NameNode上报所有的块信息；
 3. 心跳是每3秒一次，心跳返回结果带有NameNode给该DataNode的命令如复制块数据到另一台机器，或删除某个数据块。如果超过10分钟没有收到某个DataNode的心跳，则认为该节点不可用；
 4. 集群运行中可以安全加入和退出一些机器。
 
-### HDFS的优缺点
+### <span id="HDFS的优缺点">HDFS的优缺点</span>
 
 **优点**
 1. 高容错性
@@ -168,7 +173,7 @@ dn1收到一个 Packet 就会传给 dn2，dn2传给 dn3；dn1每传一个 Packet
 - 仅支持数据 append（追加），不支持文件的随机修改。
 
 
-## MapReduce 
+## <span id="MapReduce">MapReduce</span>
 MapReduce 作业通过将输入的数据集拆分为独立的块，这些块由 map 以并行的方式处理，框架对 map 的输出进行排序，然后输入到 reduce 中。  
 MapReduce 框架专门用于 <key，value> 键值对处理，它将作业的输入视为一组 <key，value> 对，并生成一组 <key，value> 对作为输出。输出和输出的 key 和 value 都必须实现Writable 接口。
 ![MapReduce架构图](https://img-blog.csdnimg.cn/20181228212253308.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzQzMTkzNzk3,size_16,color_FFFFFF,t_70)
@@ -178,7 +183,7 @@ MapReduce 框架专门用于 <key，value> 键值对处理，它将作业的输�
 2. MapTask:负责map阶段的整个处理流程
 3. ReduceTask:负责reduce阶段的整个数据处理流程
 
-### MapReduce核心思想
+### <span id="MapReduce核心思想">MapReduce核心思想</span>
 MapReduce的思想就是“**分而治之**”。  
 1. Mapper负责“分”，即把复杂的任务分解为若干个“简单的任务”来处理。“简单的任务”包含三层含义：  
 一是数据或计算的规模相对原任务要大大缩小；  
@@ -187,16 +192,16 @@ MapReduce的思想就是“**分而治之**”。
 
 2. Reducer负责对map阶段的结果进行汇总。至于需要多少个Reducer，用户可以根据具体问题，通过在mapred-site.xml配置文件里设置参数mapred.reduce.tasks的值，缺省值为1。
 
-### MapReduce处理数据流程
+### <span id="MapReduce处理数据流程">MapReduce处理数据流程</span>
 
-#### 总览
+#### <span id="总览">总览</span>
 ![总体流程](https://img-blog.csdn.net/20170517152328185?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvYWlqaXVkdQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center)
 1. 首先Map节点对所划分的数据进行并行处理，从不同的输入数据产生相应的中间结果输出；
 2. 在进行Reduce之前，必须要等到所有的Map任务执行完成，且在进入Reduce之前会有一个过程将Map的输出结果进行汇总（shuffle），以便Reduce节点可以完全基于本节点上的数据计算最终的结果；
 3. 各个Reduce节点各自进行计算，各自负责处理不同的中间结果数据集合；
 4. 汇总所有Reduce的输出结果即可获得最终结果。
 
-#### 具体流程
+#### <span id="具体流程">具体流程</span>
 1. MapReduce提供了一个 InputFormat 对象用来读取数据，并进行切分，切分后的数据被切分成为多个 InputSplit(输入切片)，
 每一个 InputSplit 将对应一个 MapTask。注意 InputSplit 存储的并不是数据本身，而是一个分片长度和一个记录数据位置的数组；
 2. 在进入Map之前，需要通过 InputFormat 方法调用 getRecordReader() 方法生成 RecordReader，RecordReader 再通过 createKey()、
@@ -208,7 +213,7 @@ createValue() 方法创建可供map处理的<key,value>对； RecordReader 即�
 
 **数据切片**：数据切片只是在逻辑上对输入进行分片，并不会在磁盘上将其切分成片进行  
 
-#### 读取数据
+#### <span id="读取数据">读取数据</span>
 **MapTask并行度决定机制**  
 MapTask的并行度决定map阶段的任务处理并发度，进而影响到整个job的处理速度；一个job的map阶段并行度由客户端在**提交job时决定**。  
 
