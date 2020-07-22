@@ -9,6 +9,7 @@
 + [HDFS的优缺点](https://github.com/hongyidashi/big-data-study/blob/master/HADOOP-README.md#hdfs%E7%9A%84%E4%BC%98%E7%BC%BA%E7%82%B9)
 
 2. MapReduce：分布式运算框架
++ [MapReduce进程](#MapReduce进程)
 3. YARN: Yet Another Resource Negotiator 资源管理调度系统
 
 
@@ -172,7 +173,7 @@ MapReduce 作业通过将输入的数据集拆分为独立的块，这些块由 
 MapReduce 框架专门用于 <key，value> 键值对处理，它将作业的输入视为一组 <key，value> 对，并生成一组 <key，value> 对作为输出。输出和输出的 key 和 value 都必须实现Writable 接口。
 ![MapReduce架构图](https://img-blog.csdnimg.cn/20181228212253308.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzQzMTkzNzk3,size_16,color_FFFFFF,t_70)
 
-### MapReduce进程
+### <span id="MapReduce进程">MapReduce进程</span>
 1. MrAppMaster:负责整个程序的过程调度及状态协调
 2. MapTask:负责map阶段的整个处理流程
 3. ReduceTask:负责reduce阶段的整个数据处理流程
