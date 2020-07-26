@@ -22,9 +22,16 @@
     - [ReduceTask-Shuffle-Copy](#ReduceTask-Shuffle-Copy)
     - [ReduceTask-Shuffle-Merge](#ReduceTask-Shuffle-Merge)
     - [ReduceTask-Reduce](#ReduceTask-Reduce)
-3. YARN: Yet Another Resource Negotiator 资源管理调度系统
++ [MapReduce优化方法](#MapReduce优化方法)
 
-
+3. [Yarn](#Yarn): Yet Another Resource Negotiator 资源管理调度系统
++ [为啥要有Yarn-拓展](#为啥要有Yarn-拓展)
++ [Yarn架构](#Yarn架构)
++ [Yarn工作机制](#Yarn工作机制)
++ [Yarn Job提交流程](#Yarn Job提交流程)
++ [Yarn的一些补充](#Yarn的一些补充)
++ [资源调度器](#资源调度器)
++ [任务的推测执行](#任务的推测执行)
 
 ## <span id="HDFS">HDFS</span>
 HDFS （Hadoop Distributed File System）是 Hadoop 下的**分布式文件系统**，具有高容错、高吞吐量等特性，可以部署在低成本的硬件上。
@@ -374,4 +381,196 @@ OutputFormat 是所有 MapReduce 输出的基类，常见的实现类有：
   1. 自定义一个类继承 FileOutputFormat；
   2. 重写 getRecordWriter() 方法，并在其中返回一个自定义 RecordWriter 实现类。
 
+### <span id="MapReduce优化方法">MapReduce优化方法</span>
+MapReduce 优化方法主要从六个方面考虑：数据输入、Map阶段、Reduce阶段、IO传输、数据倾斜问题和常用的调优参数。
+
+1. 数据输入
++ 执行MR任务前将小文件合并，减少Map任务个数；
++ 有大量小文件时，采用 CombineTextInputFormat 来作为输入
+
+2. Map阶段
++ 调整触发 Spill（溢写）的内存上限，减少 Spill次数；
++ 增大 Merge（合并）文件数目，减少 Merge 次数；
++ **在不影响业务逻辑的前提下**，先进行 Combine 处理，减少I/O；
+
+3. Reduce阶段
++ 合理设置Map和Reduce数，不能太多也不能太少；
++ 设置Map和Reduce共存，使Map运行到一定阶段的时候Reduce也开始运行；
++ 规避使用Reduce；
+
+4. 其他略，感觉没啥用
+
+## <span id="Yarn">Yarn</span>
+Yarn 是一个资源调度平台，负责为运算程序提供服务器运算资源，相当于一个分布式的操作系统平台，
+而 MapReduce 等运算程序则相当于运行于操作系统之上的应用程序。
+
+YARN是Hadoop2.0中的资源管理系统，它的基本思想是将 JobTracker 的两个主要功能(资源管理和作业调度/监控)分离，
+主要方法是创建一个全局的 ResourceManager(RM) 和若干个针对应用程序的 ApplicationMaster(AM)。
+其中 RM 负责整个系统的资源管理和分配，而 AM 负责单个应用程序的管理。应用程序是指传统的MapReduce作业或作业的DAG(有向无环图)。
+
+### <span id="为啥要有Yarn-拓展">为啥要有Yarn-拓展</span>
+
+**hadoop1.x时代**  
+在hadoop1.x时代，负责执行 MapReduce 的两个角色分别叫做 JobTracker 和 TaskTracker，
+JobTracker 负责监控 MapReduce 集群中每一个节点的运行状况和 job 启动以及运行失败后的重启等操作；
+TaskTracker 在 MapReduce 集群中的每一个节点上都会存在，它负责监控自己所在节点的上作业的运行状况以及资源的使用情况，
+并且通过心跳的方式反馈给 JobTracker，然后 JobTracker 会根据这些信息分配 job 运行在哪些机器上。
+
+**存在问题**  
+1. JobTracker 是 MapReduce 的集中处理点，存在单点故障；
+2. JobTracker 完成了太多的任务，造成了过多的资源消耗，当 MapReduce job非常多的时候，会造成很大的内存开销，潜在来说，
+也增加了 JobTracker fail 的风险；
+3. 在 TaskTracker 端，以 map/reduce task的数目作为资源的表示过于简单，没有考虑到cpu/内存的占用情况，
+如果两个大内存消耗的task被调度到了一块，很容易出现OOM；
+4. 在 TaskTracker 端，把资源强制划分为map task slot和reduce task slot，如果当系统中只有 MapTask 或者只有 ReduceTask 的时候，
+会造成资源的浪费，也就是前面提到过的集群资源利用的问题。
+
+**所以有了Yarn**  
+YARN 的核心观点是将对于集群的资源管理和作业调度分割开来。
+
+### <span id="Yarn架构">Yarn架构</span>
+![YARN架构](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1595761805591&di=59b8856e8e070d1ccc4f57d0fa81c259&imgtype=0&src=http%3A%2F%2Fjavaquan.com%2Ffile%2Fimage%2F20190130%2F2019013014022516772549.PNG)
+YARN 主要由 ResourceManager、NodeManager、ApplicationMaster 和 Container 等组件构成。  
+
+1. ResourceManager(RM)
+RM 是一个全局的资源管理器，管理整个集群的计算资源，并将这些资源分配给应用程序。
+- 处理来自客户端的请求；
+- 启动和监控 ApplicationMaster，并在它运行失败时重新启动它；
+- 监控 NodeManager；
+- 资源管理与调度，接收来自 ApplicationMaster 的资源申请请求，并为之分配资源。
+
+2. ApplicationMaster(AM)
+应用程序级别的，管理运行在 YARN 上的应用程。
+- 用户提交的每个应用程序均包含一个 AM，它可以运行在 RM 以外的机器上；
+- 负责数据切分；
+- 为应用程序申请资源并分配给内部的任务；
+- 任务监控与容错。
+
+3. NodeManager(NM)
+YARN 中每个节点上的代理，它管理 Hadoop 集群中单个计算节点。
+- 管理单节点上的资源；
+- 处理 RM 和 AM 的命令。
+
+4. Container
+Container 是 YARN 中资源的抽象，它封装了某个节点上的多维度资源，如内存、CPU、磁盘、网络等。  
+Container 由 AM 向 RM 申请的，由 RM 中的资源调度器异步分配给 AM。Container 的运行是由 AM 向资源所在的 NM 发起。
+
+### <span id="Yarn工作机制">Yarn工作机制</span>
+![工作机制流程图](https://img-blog.csdnimg.cn/20190925194234719.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2E3NTUxOTk0NDM=,size_16,color_FFFFFF,t_70)
+1. MR 程序提交到客户端所在的节点；
+2. YarnRunner 向 ResourceManager 申请一个 Application；
+3. RM 将该应用程序的资源路径返回给 YarnRunner；
+4. 该程序将运行所需资源提交到 HDFS 上；
+5. 程序资源提交完毕后，申请运行 MRAppMaster；（注：MRAppMaster 是 ApplicationMaster 实现类~~，大概是这么个意思~~）
+6. RM 将用户的请求初始化成一个 Task；
+7. 其中一个 NodeManager 领取到 Task 任务；
+8. 该 NodeManager 创建容器 Container，并产生 MRAppMaster；
+9. Container 从 HDFS 上拷贝资源到本地；
+10. MRAppMaster 向 RM 申请运行 MapTask 资源；
+11. RM 将运行 MapTask 任务分配给另外两个 NodeManager，另两个 NodeManager 分别领取任务并创建容器；
+12. MR 向两个接收到任务的 NodeManager 发送程序启动脚本，这两个 NodeManager 分别启动 MapTask，MapTask 对数据分区排序；
+13. MrAppMaster 等待所有 MapTask 运行完毕后，向 RM 申请容器，运行 ReduceTask；
+14. ReduceTask 向 MapTask 获取相应分区的数据；
+15. 程序运行完毕后，MR 会向 RM 申请注销自己。
+
+**个人的一些理解**  
+1. Task 是运行在某个 NodeManager 管理下的 Container 里，而非直接运行在 NodeManager 本身；
+2. 关于第13点，并不需要等待**所有**的 MapTask 运行完毕再运行 ReduceTask，二者应该是可以并行的。
+
+### <span id="Yarn Job提交流程">Yarn Job提交流程</span>
+![Yarn Job提交流程](https://ss3.bdstatic.com/70cFv8Sh_Q1YnxGkpoWK1HF6hhy/it/u=856711650,2447342781&fm=15&gp=0.jpg)
+1. 作业提交  
+client 调用 job.waitForCompletion 方法，向整个集群提交 MapReduce 作业 (第 1 步) ；  
+新的作业 ID(应用 ID) 由资源管理器(RM)分配 (第 2 步)；  
+作业的 client 核实作业的输出, 计算输入的 split, 将作业的资源 (包括 Jar 包，配置文件, split 信息) 拷贝给 HDFS(第 3 步)；   
+最后, 通过调用资源管理器的 submitApplication() 来提交作业 (第 4 步)。  
+
+2. 作业初始化  
+当资源管理器(RM)收到 submitApplIcation() 的请求时, 就将该请求发给调度器 (Scheduler), 调度器分配 container, 
+然后资源管理器在该 container 内启动应用管理器进程, 由节点管理器(NM)监控 (第 5 步)；  
+MapReduce 作业的应用管理器是一个主类为 MRAppMaster 的 Java 应用，其通过创造一些 bookkeeping 对象来监控作业的进度, 
+得到任务的进度和完成报告 (第 6 步)；  
+然后其通过分布式文件系统得到由客户端计算好的输入 split(第 7 步)；  
+最后为每个输入 split 创建一个 map 任务, 根据 mapreduce.job.reduces 创建 reduce 任务对象。
+
+3. 任务分配  
+如果作业很小, 应用管理器会选择在其自己的 JVM 中运行任务；如果不是小作业, 
+那么应用管理器向资源管理器请求 container 来运行所有的 map 和 reduce 任务 (第 8 步)。  
+这些请求是通过心跳来传输的, 包括每个 map 任务的数据位置，比如存放输入 split 的主机名和机架 (rack)，调度器利用这些信息来调度任务，
+尽量将任务分配给存储数据的节点, 或者分配给和存放输入 split 的节点相同机架的节点。
+
+4. 任务运行  
+当一个任务由资源管理器的调度器分配给一个 container 后，应用管理器(AM)通过联系节点管理器来启动 container(第 9 步)；  
+任务由一个主类为 YarnChild 的 Java 应用执行， 在运行任务之前首先本地化任务需要的资源，比如作业配置，JAR 文件, 
+以及分布式缓存的所有文件 (第 10 步)；  
+运行 map 或 reduce 任务 (第 11 步)。  
+YarnChild 运行在一个专用的 JVM 中, 但是 YARN 不支持 JVM 重用。
+
+5. 进度和状态更新  
+YARN 中的任务将其进度和状态 (包括 counter) 返回给应用管理器(AM), 
+客户端每秒 (通 mapreduce.client.progressmonitor.pollinterval 设置) 向应用管理器请求进度更新, 展示给用户。
+
+6. 作业完成
+除了向应用管理器(AM)请求作业进度外, 客户端每 5 分钟都会通过调用 waitForCompletion() 来检查作业是否完成，
+时间间隔可以通过 mapreduce.client.completion.pollinterval 来设置。作业完成之后, 应用管理器和 container 会清理工作状态，
+OutputCommiter 的作业清理方法也会被调用。作业的信息会被作业历史服务器存储以备之后用户核查。
+
+### <span id="Yarn的一些补充">Yarn的一些补充</span>
+1. 用户提交的程序的运行逻辑对 yarn 是透明的，yarn 并不需要知道；
+2. yarn 只提供运算资源的调度（用户程序向 yarn 申请资源，yarn 就负责分配资源）；
+3. yarn 中的老大叫 ResourceManager（知道所有小弟的资源情况，以做出资源分配），
+yarn 中具体提供运算资源的角色叫 NodeManager（小弟）；
+4. yarn 与运行的用户程序完全解耦，就意味着 yarn 上可以运行各种类型的分布式运算程序（mapreduce 只是其中的一种），
+比如mapreduce、storm程序，spark程序(不要纠结这些个是啥~~，因为目前我也不知道~~)...只要他们各自的框架中有符合yarn规范的资源请求机制即可；
+6. Yarn 是一个通用的资源调度平台，企业中存在的各种运算集群都可以整合在一个物理集群上，提高资源利用率，方便数据共享。
+
+### <span id="资源调度器">资源调度器</span>
+目前，Hadoop作业调度器主要有三种：FIFO、Capacity Scheduler和Fair Scheduler。  
+Hadoop2.7.2默认的资源调度器是Capacity Scheduler。  
+
+1. FIFO Scheduler  
+FIFO Scheduler 把应用按提交的顺序排成**一个队列**，这是一个**先进先出队列**，在进行资源分配的时候，先给队列中最头上的应用进行分配资源，
+待最头上的应用需求满足后再给下一个分配，以此类推。  
+
+**缺点**  
+耗时长的任务会导致后提交的一直处于等待状态，资源利用率不高；当集群多人共享，显然不合理，不适合共享集群，
+共享集群更适合采用 **Capacity Scheduler** 或 **Fair Scheduler**。
+
+2. Capacity Scheduler  
+- 支持**多个队列**，每个队列可配置一定的资源量，每个队列采用 FIFO 调度策略；
+- 为了防止同一个用户作业独占队列中的资源，调度器会对同一个用户提交的作业所占的资源量进行限定；
+
+**调度流程**
+1. 计算每个队列中正在进行的任务数与其应分得的计算资源之间的比值，选择一个该值最小的队列——最闲的队列；
+2. 按照作业的**优先级**和**提交的时间顺序**，同时考虑用户资源量限制和内存限制对队列内任务排序；
+3. 多个队列按照任务先后顺序并行执行任务。
+
+3. Fair Scheduler
+公平调度是一种对于全局资源，对于所有应用作业来说，都均匀分配的资源分配方法。默认情况，公平调度器 Fair Scheduler 基于内存来安排公平调度策略。
+也可以配置为同时基于内存和CPU来进行调度（Dominant Resource Fairness）。在一个队列内，可以使用 FIFO、FAIR、DRF 调度策略对应用进行调度。
+FairScheduler 允许保障性的分配最小资源到队列。
+
+**调度流程**  
+- **支持多队列多用户**，每个队列中的资源量可以配置，同一个队列中的作业**公平共享**队列中的所有资源；
+- 每个队列中的 Job 按照优先级分配资源，优先级越高分配资源越多，但**每个 Job 都会分配到资源**以确保公平；
+- 在一个队列中，**Job 的资源缺额越大，越先获得资源执行**。作业是按照缺额的高低来先后执行的。
+
+>缺额  
+>在资源有限的情况下，每个 Job 理想情况下获得的资源与实际获得的资源存在一种差距，这个差距就叫做缺额。
+
+### <span id="任务的推测执行">任务的推测执行</span>
+**出现的问题**  
+作业完成时间取决于最慢的任务完成时间：一个作业由若干个Map任务和Reduce任务构成。因硬件老化、软件Bug等，某些任务可能运行非常慢。
+
+**推测执行机制**  
+发现拖后腿的任务，比如某个任务运行速度远慢于任务平均速度。为拖后腿任务启动一个备份任务，同时运行。谁先运行完，则采用谁的结果。
+
+**执行推测任务的前提条件**  
+- 每个 Task 只能有一个备份任务；
+- 当前 Job 已完成的 Task 必须不小于0.05（5%）；
+- 开启推测执行参数设置。mapred-site.xml文件中默认是打开的。
+
+**不能启用推测执行机制情况**  
+- 任务间存在严重的负载倾斜；
+- 特殊任务，比如任务向数据库中写数据。
 
