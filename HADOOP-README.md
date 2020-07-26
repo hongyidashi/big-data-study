@@ -16,9 +16,12 @@
     - [具体流程](#具体流程)
     - [Map-Read](#Map-Read)
     - [MapTask-Map](#MapTask-Map)
-    - [Shuffle-Collect](#Shuffle-Collect)
-    - [Shuffle-Spill](#Shuffle-Spill)
-    - [Shuffle-Collect](#Shuffle-Combine)
+    - [MapTask-Shuffle-Collect](#MapTask-Shuffle-Collect)
+    - [MapTask-Shuffle-Spill](#MapTask-Shuffle-Spill)
+    - [MapTask-Shuffle-Combine](#MapTask-Shuffle-Combine)
+    - [ReduceTask-Shuffle-Copy](#ReduceTask-Shuffle-Copy)
+    - [ReduceTask-Shuffle-Merge](#ReduceTask-Shuffle-Merge)
+    - [ReduceTask-Reduce](#ReduceTask-Reduce)
 3. YARN: Yet Another Resource Negotiator 资源管理调度系统
 
 
@@ -283,7 +286,7 @@ Hadoop序列化特点：
 - **排序**：可用于分区排序。
 
 
-#### <span id="Shuffle-Spill">Shuffle-Spill</span>
+#### <span id="MapTask-Shuffle-Spill">MapTask-Shuffle-Spill</span>
 当环形缓冲区满后，MapReduce 会将数据写到本地磁盘上，生成一个临时文件。
 需要注意的是，将数据写入本地磁盘之前，**先要对数据进行一次本地排序，并在必要时对数据进行合并、压缩等操作**。
 
@@ -317,6 +320,58 @@ MapReduce中的排序：
 - combiner 的意义就是对每一个 MapTask 的输出进行局部汇总，以减小网络传输量；
 - 要保证不管调用几次combiner函数都不会影响最终的结果，Combiner 属于优化方案。
 
-#### <span id="Shuffle-Combine">Shuffle-Combine</span>
+#### <span id="MapTask-Shuffle-Combine">MapTask-Shuffle-Combine</span>
+当所有数据处理完成后，MapTask对所有临时文件进行一次合并，以确保最终只会生成一个数据文件。
+
+#### <span id="ReduceTask-Shuffle-Copy">ReduceTask-Shuffle-Copy</span>
+ReduceTask 从各个 MapTask 上远程拷贝一片数据，如果某一片数据大小超过一定阈值，则写到磁盘上，否则直接放到内存中。  
+job的第一个 map 结束后，所有的 reduce 就开始尝试从完成的 map 中下载该 reduce 对应的 partition 部分数据，因此 map 和 reduce 是交叉进行的。
+>为什么要交叉进行  
+>由于job的每一个map都会根据reduce(n)数将数据分成map 输出结果分成n个partition，
+>所以map的中间结果中是有可能包含每一个reduce需要处理的部分数据的。~~别问，问就是效率~~这么做的目的是为了优化执行时间。
+
+copy 线程(Fetcher)通过HTTP方式请求 MapTask 所在的 TaskTracker 获取 MapTask 的输出文件，默认最大并行度（同时到多少个Mapper下载数据）为 5 。  
+>如果下载过程中出现数据丢失、断网等问题咋办  
+>这样 reduce 的下载就有可能失败，所以reduce的下载线程并不会无休止的等待下去，当一定时间后下载仍然失败，那么下载线程就会放弃这次下载，
+>并在随后尝试从另外的地方下载（因为这段时间map可能重跑）。下载时间默认为**180000秒**，一般情况下都会调大这个参数，~~别问，问就是效率~~这是企业级最佳实战。
+
+#### <span id="ReduceTask-Shuffle-Merge">ReduceTask-Shuffle-Merge</span>
+在远程拷贝数据的同时，ReduceTask启动了两个后台线程对内存和磁盘上的文件进行合并，以防止内存使用过多或磁盘上文件过多。  
+
+**Reduce端的 shuffle 也有一个环形缓冲区，同样会进行 partition、combine、排序等过程。**
+
+Copy 过来的数据会先放入内存缓冲区中，然后当使用内存达到一定量的时候才 Spill 磁盘。  
+与 Map 端类似，这也是溢写的过程，这个过程中如果设置有 Combiner，也是会启用的，然后在磁盘中生成了众多的溢写文件。
+**这种 merge 方式一直在运行，直到没有 Map 端的数据时才结束，然后启动磁盘到磁盘的 merge 方式生成最终的那个文件。**  
+
+merge三种形式
++ 内存到内存Merge（memToMemMerger）：这种合并将内存中的 map 输出合并，然后再写入内存；这种合并默认关闭；
++ 内存中Merge（inMemoryMerger）：当缓冲中数据达到配置的阈值时，这些数据在内存中被合并、写入机器磁盘；
++ 磁盘上的Merge（onDiskMerger）
+  - Copy过程中磁盘Merge：在 copy 过来的数据不断写入磁盘的过程中，一个后台线程会把这些文件合并为更大的、有序的文件；
+  这里的合并只是为了减少最终合并的工作量，也就是在 map 输出还在拷贝时，就开始进行一部分合并工作；合并的过程一样会进行全局排序；
+  - 最终磁盘中Merge：当所有map输出都拷贝完毕之后，所有数据被最后合并成一个整体有序的文件，作为reduce任务的输入；
+  这个合并过程是一轮一轮进行的，最后一轮的合并结果直接推送给 reduce 作为输入，节省了磁盘操作的一个来回。
+>Copy过程中磁盘Merge  
+>如果map的输出结果进行了压缩，则在合并过程中，需要在内存中解压后才能给进行合并。
+
+>最终磁盘中Merge  
+>最后（所有 Map 输出都拷贝到 reduce 之后）进行合并的 Map 输出可能来自合并后写入磁盘的文件，也可能来自内存缓冲，
+>在最后写入内存的 Map 输出可能没有达到阈值触发合并，所以还留在内存中。  
+>每一轮合并不一定合并平均数量的文件数，指导原则是使整个合并过程中写入磁盘的数据量最小，为了达到这个目的，
+>则需要最终的一轮合并中合并尽可能多的数据，因为最后一轮的数据直接作为reduce的输入，无需写入磁盘再读出。
+
+#### <span id="ReduceTask-Reduce">ReduceTask-Reduce</span>
+通过 reduce()函数（用户自定义业务逻辑）将计算结果写到HDFS上。  
+Reduce 在这个阶段，框架为已分组的输入数据中的每个 <key, (list of values)>对调用一次 reduce(WritableComparable,Iterator, OutputCollector, Reporter)方法。
+Reduce 任务的输出通常是通过调用 OutputCollector.collect(WritableComparable,Writable)写入文件系统的。**Reducer 的输出是没有排序的**。
+
+**OutputFormat 数据输出**  
+OutputFormat 是所有 MapReduce 输出的基类，常见的实现类有：
+- TextOutputFormat：默认输出格式，它把每条记录写为文本；
+- SequenceFileOutputFormat：将 SequenceFileOutputFormat 的输出作为后续 MapReduce 的输入，这种格式紧凑，容易被压缩。
+- 自定义OutputFormat：
+  1. 自定义一个类继承 FileOutputFormat；
+  2. 重写 getRecordWriter() 方法，并在其中返回一个自定义 RecordWriter 实现类。
 
 
