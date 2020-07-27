@@ -5,6 +5,20 @@
 4. [Hive数据类型](#Hive数据类型)
     + [基本数据类型](#基本数据类型)
     + [隐式转换](#隐式转换)
+    + [复杂类型](#复杂类型)
+5. [内容格式](#内容格式)
+6. [存储格式](#存储格式)
+    + [支持的存储格式](#支持的存储格式)
+    + [指定存储格式](#指定存储格式)
+7. [内部表和外部表](#内部表和外部表)
+8. [Hive命令操作相关链接](#Hive命令操作相关链接)
+    + [Hive CLI 和 Beeline 命令行的基本使用](#HiveCLI和Beeline命令行的基本使用)
+    + [Hive 常用 DDL 操作](#Hive常用DDL操作)
+    + [Hive 分区表和分桶表](#Hive分区表和分桶表)
+    + [Hive 视图和索引](#Hive视图和索引)
+    + [Hive 常用 DML 操作](#Hive常用DML操作)
+    + [Hive 数据查询详解](#Hive数据查询详解)
+
     
 
 
@@ -35,10 +49,10 @@ Hive 是**基于 Hadoop** 的一个数据仓库工具，可以将结构化的数
 **总的来说就是：易上手，适合处理大数据，对于处理小数据没有优势。**
 
 ## <span id="Hive工作原理">Hive工作原理</span>
-架构图英文装逼版：
+架构图英文装逼版：  
 ![架构图英文装逼版](https://pic1.zhimg.com/80/2d3d0078e986bd8011a0dd13ac8b3601_1440w.jpg?source=1940ef5c)
 
-架构图中文体验版：
+架构图中文体验版：  
 ![架构图中文体验版](https://img2018.cnblogs.com/blog/1800958/201909/1800958-20190929111919314-580649360.jpg)
 
 **组成结构**  
@@ -141,4 +155,118 @@ Hive 中基本数据类型遵循以下的层次结构，按照这个层次结构
 
 附上 **隐式转换表-头痛欲裂版**
 ![隐式转换表-头痛欲裂版](https://img-blog.csdn.net/20180518102522489?watermark/2/text/aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzM3NjA5NzAx/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70)
+
+### <span id="复杂类型">复杂类型</span>
+
+| 类型       | 描述                                                         | 示例                                   |
+| ---------- | ------------------------------------------------------------ | -------------------------------------- |
+| **STRUCT** | 类似于对象，是字段的集合，字段的类型可以不同，可以使用 ` 名称.字段名 ` 方式进行访问 | STRUCT ('xiaoming', 12 , '2018-12-12') |
+| **MAP**    | 键值对的集合，可以使用 ` 名称[key]` 的方式访问对应的值          | map('a', 1, 'b', 2)                    |
+| **ARRAY**  | 数组是一组具有相同类型和名称的变量的集合，可以使用 ` 名称[index]` 访问对应的值 | ARRAY('a', 'b', 'c', 'd')              |
+
+**示例**  
+```sql
+CREATE TABLE students(
+  name      STRING,   -- 姓名
+  age       INT,      -- 年龄
+  subject   ARRAY<STRING>,   --学科
+  score     MAP<STRING,FLOAT>,  --各个学科考试成绩
+  address   STRUCT<houseNumber:int, street:STRING, city:STRING, province：STRING>  --家庭居住地址
+) ROW FORMAT DELIMITED FIELDS TERMINATED BY "\t";
+```
+ 
+
+## <span id="内容格式">内容格式</span>
+
+当数据存储在文本文件中，必须按照**一定格式区别行和列**，如使用**逗号**作为分隔符的 CSV 文件 (Comma-Separated Values) 
+或者使用**制表符**作为分隔值的 TSV 文件 (Tab-Separated Values)。但此时也存在一个缺点，就是正常的文件内容中也可能出现逗号或者制表符。  
+所以 Hive 默认使用了几个平时很少出现的字符，这些字符一般不会作为内容出现在文件中。Hive 默认的行和列分隔符如下表所示。
+
+| 分隔符          | 描述                                                         |
+| --------------- | ------------------------------------------------------------ |
+| **\n**          | 对于文本文件来说，每行是一条记录，所以可以使用换行符来分割记录 |
+| **^A (Ctrl+A)** | 分割字段 (列)，在 CREATE TABLE 语句中也可以使用八进制编码 `\001` 来表示 |
+| **^B**          | 用于分割 ARRAY 或者 STRUCT 中的元素，或者用于 MAP 中键值对之间的分割，<br/>在 CREATE TABLE 语句中也可以使用八进制编码 `\002` 表示 |
+| **^C**          | 用于 MAP 中键和值之间的分割，在 CREATE TABLE 语句中也可以使用八进制编码 `\003` 表示 |
+
+使用示例如下：
+
+```sql
+CREATE TABLE page_view(viewTime INT, userid BIGINT)
+ ROW FORMAT DELIMITED
+   FIELDS TERMINATED BY '\001'
+   COLLECTION ITEMS TERMINATED BY '\002'
+   MAP KEYS TERMINATED BY '\003'
+ STORED AS SEQUENCEFILE;
+```
+
+## <span id="存储格式">存储格式</span>
+
+### <span id="支持的存储格式">支持的存储格式</span>
+
+Hive 会在 HDFS 为每个数据库上创建一个目录，数据库中的表是该目录的子目录，表中的数据会以文件的形式存储在对应的表目录下。Hive 支持以下几种文件存储格式：
+
+| 格式             | 说明                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| **TextFile**     | 存储为纯文本文件。 这是 Hive 默认的文件存储格式。这种存储方式数据不做压缩，磁盘开销大，数据解析开销大。 |
+| **SequenceFile** | SequenceFile 是 Hadoop API 提供的一种二进制文件，它将数据以<key,value>的形式序列化到文件中。这种二进制文件内部使用 Hadoop 的标准的 Writable 接口实现序列化和反序列化。它与 Hadoop API 中的 MapFile 是互相兼容的。Hive 中的 SequenceFile 继承自 Hadoop API 的 SequenceFile，不过它的 key 为空，使用 value 存放实际的值，这样是为了避免 MR 在运行 map 阶段进行额外的排序操作。 |
+| **RCFile**       | RCFile 文件格式是 FaceBook 开源的一种 Hive 的文件存储格式，首先将表分为几个行组，对每个行组内的数据按列存储，每一列的数据都是分开存储。 |
+| **ORC Files**    | ORC 是在一定程度上扩展了 RCFile，是对 RCFile 的优化。            |
+| **Avro Files**   | Avro 是一个数据序列化系统，设计用于支持大批量数据交换的应用。它的主要特点有：支持二进制序列化方式，可以便捷，快速地处理大量数据；动态语言友好，Avro 提供的机制使动态语言可以方便地处理 Avro 数据。 |
+| **Parquet**      | Parquet 是基于 Dremel 的数据模型和算法实现的，面向分析型业务的列式存储格式。它通过按列进行高效压缩和特殊的编码技术，从而在降低存储空间的同时提高了 IO 效率。 |
+
+> 以上压缩格式中 ORC 和 Parquet 的综合性能突出，使用较为广泛，推荐使用这两种格式。
+
+### <span id="指定存储格式">指定存储格式</span>
+
+通常在创建表的时候使用 `STORED AS` 参数指定：
+
+```sql
+CREATE TABLE page_view(viewTime INT, userid BIGINT)
+ ROW FORMAT DELIMITED
+   FIELDS TERMINATED BY '\001'
+   COLLECTION ITEMS TERMINATED BY '\002'
+   MAP KEYS TERMINATED BY '\003'
+ STORED AS SEQUENCEFILE;
+```
+
+各个存储文件类型指定方式如下：
+- STORED AS TEXTFILE
+- STORED AS SEQUENCEFILE
+- STORED AS ORC
+- STORED AS PARQUET
+- STORED AS AVRO
+- STORED AS RCFILE
+
+## <span id="内部表和外部表">内部表和外部表</span>
+
+内部表又叫做管理表 (Managed/Internal Table)，创建表时不做任何指定，默认创建的就是内部表。想要创建外部表 (External Table)，
+则需要使用 External 进行修饰。 内部表和外部表主要区别如下：
+
+|              | 内部表                                                       | 外部表                                                       |
+| ------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
+| 数据存储位置 | 内部表数据存储的位置由 hive.metastore.warehouse.dir 参数指定，默认情况下表的数据存储在 HDFS 的 `/user/hive/warehouse/数据库名.db/表名/`  目录下 | 外部表数据的存储位置创建表时由 `Location` 参数指定；           |
+| 导入数据     | 在导入数据到内部表，内部表将数据移动到自己的数据仓库目录下，数据的生命周期由 Hive 来进行管理 | 外部表不会将数据移动到自己的数据仓库目录下，只是在元数据中存储了数据的位置 |
+| 删除表       | 删除元数据（metadata）和文件                                 | 只删除元数据（metadata）                                     |
+
+
+## <span id="Hive命令操作相关链接">Hive命令操作相关链接</span>
+
+### <span id="Hive CLI 和 Beeline 命令行的基本使用">Hive CLI 和 Beeline 命令行的基本使用</span>
+[Hive CLI 和 Beeline 命令行的基本使用](https://gitee.com/heibaiying/BigData-Notes/blob/master/notes/HiveCLI%E5%92%8CBeeline%E5%91%BD%E4%BB%A4%E8%A1%8C%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8.md)
+
+### <span id="Hive常用DDL操作">Hive 常用 DDL 操作</span>
+[Hive 常用 DDL 操作](https://gitee.com/heibaiying/BigData-Notes/blob/master/notes/Hive%E5%B8%B8%E7%94%A8DDL%E6%93%8D%E4%BD%9C.md)
+
+### <span id="Hive分区表和分桶表">Hive 分区表和分桶表</span>
+[Hive 分区表和分桶表](https://gitee.com/heibaiying/BigData-Notes/blob/master/notes/Hive%E5%88%86%E5%8C%BA%E8%A1%A8%E5%92%8C%E5%88%86%E6%A1%B6%E8%A1%A8.md)
+
+### <span id="Hive视图和索引">Hive 视图和索引</span>
+[Hive 视图和索引](https://gitee.com/heibaiying/BigData-Notes/blob/master/notes/Hive%E8%A7%86%E5%9B%BE%E5%92%8C%E7%B4%A2%E5%BC%95.md)
+
+### <span id="Hive常用DML操作">Hive 常用 DML 操作</span>
+[Hive 常用 DML 操作](https://gitee.com/heibaiying/BigData-Notes/blob/master/notes/Hive%E5%B8%B8%E7%94%A8DML%E6%93%8D%E4%BD%9C.md)
+
+### <span id="Hive数据查询详解">Hive 数据查询详解</span>
+[Hive 数据查询详解](https://gitee.com/heibaiying/BigData-Notes/blob/master/notes/Hive%E6%95%B0%E6%8D%AE%E6%9F%A5%E8%AF%A2%E8%AF%A6%E8%A7%A3.md)
 
