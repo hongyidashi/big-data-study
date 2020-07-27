@@ -252,7 +252,7 @@ CREATE TABLE page_view(viewTime INT, userid BIGINT)
 
 ## <span id="Hive命令操作相关链接">Hive命令操作相关链接</span>
 
-### <span id="Hive CLI 和Beeline命令行的基本使用">Hive CLI 和 Beeline 命令行的基本使用</span>
+### <span id="HiveCLI和Beeline命令行的基本使用">Hive CLI 和 Beeline 命令行的基本使用</span>
 [Hive CLI 和 Beeline 命令行的基本使用](https://gitee.com/heibaiying/BigData-Notes/blob/master/notes/HiveCLI%E5%92%8CBeeline%E5%91%BD%E4%BB%A4%E8%A1%8C%E7%9A%84%E5%9F%BA%E6%9C%AC%E4%BD%BF%E7%94%A8.md)
 
 ### <span id="Hive常用DDL操作">Hive 常用 DDL 操作</span>
