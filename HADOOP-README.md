@@ -225,7 +225,9 @@ createValue() 方法创建可供map处理的<key,value>对； RecordReader 即�
 避免不同Reduce节点上的数据有相关性，保证每一个 Reduce 节点可以独立完成本地计算。并且在传入 Reduce 节点之前还会自动将所有键值对按照主键值进行排序；
 5. Reduce 计算完成之后，会经过 OutputFormat 对象指定输出数据的具体格式，最终将数据输出并写回到 HDFS 上。
 
-**数据切片**：数据切片只是在逻辑上对输入进行分片，并不会在磁盘上将其切分成片进行  
+**数据切片**：数据切片只是在逻辑上对输入进行分片，并不会在磁盘上将其切分成片进行  。
+
+---
 
 #### <span id="Map-Read">Map-Read</span>
 MapTask 通过用户编写的 RecordReader，从输入 InputSplit 中解析出一个个 key/value。
@@ -249,10 +251,10 @@ Hadoop序列化特点：
 
 >不管文件多小，都会是一个单独的切片，都会交给一个 MapTask，这样如果有大量小文件，就会产生大量的 MapTask，处理效率极其低下
 
-2. CombineTextInputFormat
+2. CombineFileInputFormat
 + 可以将多个小文件从逻辑上规划到一个切片中
 
-**切片机制**：
+**切片机制**：  
 虚拟存储：将输入目录下所有文件大小，依次和设置的 setMaxInputSplitSize 值比较，如果不大于设置的最大值，逻辑上划分一个块。
 如果输入文件大于设置的最大值且大于两倍，那么以最大值切割一块；当剩余数据大小超过设置的最大值且不大于最大值2倍，
 此时将文件均分成2个虚拟存储块（防止出现太小切片）。  
@@ -267,6 +269,8 @@ Hadoop序列化特点：
 
 #### <span id="MapTask-Map">MapTask-Map</span>
 该阶段主要是将解析出的key/value交给用户编写map()函数处理，并产生一系列新的key/value。
+
+---
 
 #### <span id="Shuffle-Collect">Shuffle-Collect</span>
 在用户编写 map() 函数中，当数据处理完成后，一般会调用 OutputCollector.collect() 输出结果。
@@ -292,6 +296,7 @@ Hadoop序列化特点：
 >从而拖延整个任务的进度。
 - **排序**：可用于分区排序。
 
+---
 
 #### <span id="MapTask-Shuffle-Spill">MapTask-Shuffle-Spill</span>
 当环形缓冲区满后，MapReduce 会将数据写到本地磁盘上，生成一个临时文件。
@@ -308,7 +313,7 @@ Hadoop序列化特点：
 3. 将分区数据的**元信息**写到内存索引数据结构 SpillRecord 中，元信息包括在临时文件中的偏移量、压缩前数据大小和压缩后数据大小。
 如果当前内存索引大小超过**1MB**，则将内存索引写到文件output/spillN.out.index中。
 
-**WritableComparable排序**
+**WritableComparable排序**  
 MapTask 和 ReducerTask 均会对数据进行排序，该操作属于Hadoop默认行为，不管逻辑上是否需要。  
 MapReduce中的排序：
 - 对于MapTask，环形缓冲区达到一定阈值时，会对缓冲区中的数据进行一次快排；数据处理完毕后，会对磁盘上所有文件进行归并排序；
@@ -316,31 +321,37 @@ MapReduce中的排序：
 
 自定义排序：bean对象做为key传输，需要实现 WritableComparable 接口重写 compareTo() 方法，就可以实现排序。
 
-**分组**
+**分组**  
 分组和上面提到的 partition（分区）不同，分组发生在 reduce 端，reduce 的输入数据，会根据 key 是否相等而分为一组，
 如果 key 相等的，则这些 key 所对应的 value 值会作为一个迭代器对象传给 reduce 函数。
 >如果key是用户自定义的bean对象，那么就算两个对象的内容都相同，这两个bean对象也不相等，也会被分为两组，
 >该bean需要继承 WritableComparator 并重写compare() 方法才能被分为同一组。
 
-**Combiner(map端的reduce)**
+**Combiner(map端的reduce)**  
 - combiner 的输入是 Map 的输出，combiner 的输出作为 Reduce 的输入，很多情况下可以直接将 reduce 函数作为 combiner 函数来使用；
 - combiner 的意义就是对每一个 MapTask 的输出进行局部汇总，以减小网络传输量；
 - 要保证不管调用几次combiner函数都不会影响最终的结果，Combiner 属于优化方案。
 
+---
+
 #### <span id="MapTask-Shuffle-Combine">MapTask-Shuffle-Combine</span>
 当所有数据处理完成后，MapTask对所有临时文件进行一次合并，以确保最终只会生成一个数据文件。
+
+---
 
 #### <span id="ReduceTask-Shuffle-Copy">ReduceTask-Shuffle-Copy</span>
 ReduceTask 从各个 MapTask 上远程拷贝一片数据，如果某一片数据大小超过一定阈值，则写到磁盘上，否则直接放到内存中。  
 job的第一个 map 结束后，所有的 reduce 就开始尝试从完成的 map 中下载该 reduce 对应的 partition 部分数据，因此 map 和 reduce 是交叉进行的。
 >为什么要交叉进行  
 >由于job的每一个map都会根据reduce(n)数将数据分成map 输出结果分成n个partition，
->所以map的中间结果中是有可能包含每一个reduce需要处理的部分数据的。~~别问，问就是效率~~这么做的目的是为了优化执行时间。
+>所以map的中间结果中是有可能包含每一个reduce需要处理的部分数据的。~~别问，问就是经验~~这么做的目的是为了优化执行时间。
 
 copy 线程(Fetcher)通过HTTP方式请求 MapTask 所在的 TaskTracker 获取 MapTask 的输出文件，默认最大并行度（同时到多少个Mapper下载数据）为 5 。  
 >如果下载过程中出现数据丢失、断网等问题咋办  
 >这样 reduce 的下载就有可能失败，所以reduce的下载线程并不会无休止的等待下去，当一定时间后下载仍然失败，那么下载线程就会放弃这次下载，
 >并在随后尝试从另外的地方下载（因为这段时间map可能重跑）。下载时间默认为**180000秒**，一般情况下都会调大这个参数，~~别问，问就是效率~~这是企业级最佳实战。
+
+---
 
 #### <span id="ReduceTask-Shuffle-Merge">ReduceTask-Shuffle-Merge</span>
 在远程拷贝数据的同时，ReduceTask启动了两个后台线程对内存和磁盘上的文件进行合并，以防止内存使用过多或磁盘上文件过多。  
@@ -367,6 +378,8 @@ merge三种形式
 >在最后写入内存的 Map 输出可能没有达到阈值触发合并，所以还留在内存中。  
 >每一轮合并不一定合并平均数量的文件数，指导原则是使整个合并过程中写入磁盘的数据量最小，为了达到这个目的，
 >则需要最终的一轮合并中合并尽可能多的数据，因为最后一轮的数据直接作为reduce的输入，无需写入磁盘再读出。
+
+---
 
 #### <span id="ReduceTask-Reduce">ReduceTask-Reduce</span>
 通过 reduce()函数（用户自定义业务逻辑）将计算结果写到HDFS上。  
@@ -464,7 +477,7 @@ Container 由 AM 向 RM 申请的，由 RM 中的资源调度器异步分配给 
 5. 程序资源提交完毕后，申请运行 MRAppMaster；（注：MRAppMaster 是 ApplicationMaster 实现类~~，大概是这么个意思~~）
 6. RM 将用户的请求初始化成一个 Task；
 7. 其中一个 NodeManager 领取到 Task 任务；
-8. 该 NodeManager 创建容器 Container，并产生 MRAppMaster；
+8. 该 NodeManager 创建容器 Container，并产生 MRAppMaster(其实 [MapReduce](#MapReduce进程) 里也有介绍过，应该是同一个东西)；
 9. Container 从 HDFS 上拷贝资源到本地；
 10. MRAppMaster 向 RM 申请运行 MapTask 资源；
 11. RM 将运行 MapTask 任务分配给另外两个 NodeManager，另两个 NodeManager 分别领取任务并创建容器；
