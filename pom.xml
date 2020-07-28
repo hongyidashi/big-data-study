@@ -16,6 +16,7 @@
         <module>guli-video</module>
         <module>flume-demo</module>
         <module>kafka-demo</module>
+        <module>hbase-demo</module>
     </modules>
 
 </project>
