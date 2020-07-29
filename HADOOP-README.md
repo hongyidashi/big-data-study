@@ -28,7 +28,7 @@
 + [为啥要有Yarn-拓展](#为啥要有Yarn-拓展)
 + [Yarn架构](#Yarn架构)
 + [Yarn工作机制](#Yarn工作机制)
-+ [Yarn Job提交流程](#Yarn Job提交流程)
++ [YarnJob提交流程](#YarnJob提交流程)
 + [Yarn的一些补充](#Yarn的一些补充)
 + [资源调度器](#资源调度器)
 + [任务的推测执行](#任务的推测执行)
@@ -344,12 +344,12 @@ ReduceTask 从各个 MapTask 上远程拷贝一片数据，如果某一片数据
 job的第一个 map 结束后，所有的 reduce 就开始尝试从完成的 map 中下载该 reduce 对应的 partition 部分数据，因此 map 和 reduce 是交叉进行的。
 >为什么要交叉进行  
 >由于job的每一个map都会根据reduce(n)数将数据分成map 输出结果分成n个partition，
->所以map的中间结果中是有可能包含每一个reduce需要处理的部分数据的。~~别问，问就是经验~~这么做的目的是为了优化执行时间。
+>所以map的中间结果中是有可能包含每一个reduce需要处理的部分数据的。~~别问，问就是效率~~这么做的目的是为了优化执行时间。
 
 copy 线程(Fetcher)通过HTTP方式请求 MapTask 所在的 TaskTracker 获取 MapTask 的输出文件，默认最大并行度（同时到多少个Mapper下载数据）为 5 。  
 >如果下载过程中出现数据丢失、断网等问题咋办  
 >这样 reduce 的下载就有可能失败，所以reduce的下载线程并不会无休止的等待下去，当一定时间后下载仍然失败，那么下载线程就会放弃这次下载，
->并在随后尝试从另外的地方下载（因为这段时间map可能重跑）。下载时间默认为**180000秒**，一般情况下都会调大这个参数，~~别问，问就是效率~~这是企业级最佳实战。
+>并在随后尝试从另外的地方下载（因为这段时间map可能重跑）。下载时间默认为**180000秒**，一般情况下都会调大这个参数，~~别问，问就是经验~~这是企业级最佳实战。
 
 ---
 
@@ -490,7 +490,7 @@ Container 由 AM 向 RM 申请的，由 RM 中的资源调度器异步分配给 
 1. Task 是运行在某个 NodeManager 管理下的 Container 里，而非直接运行在 NodeManager 本身；
 2. 关于第13点，并不需要等待**所有**的 MapTask 运行完毕再运行 ReduceTask，二者应该是可以并行的。
 
-### <span id="Yarn Job提交流程">Yarn Job提交流程</span>
+### <span id="YarnJob提交流程">YarnJob提交流程</span>
 ![Yarn Job提交流程](https://ss3.bdstatic.com/70cFv8Sh_Q1YnxGkpoWK1HF6hhy/it/u=856711650,2447342781&fm=15&gp=0.jpg)
 1. 作业提交  
 client 调用 job.waitForCompletion 方法，向整个集群提交 MapReduce 作业 (第 1 步) ；  
