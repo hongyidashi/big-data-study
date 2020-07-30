@@ -30,7 +30,7 @@ public class TestDMLAPI {
         //putData("stu", "1005", "info1", "name", "shit");
         //getData("stu", "1005", null, null);
         //getData("stu", "1005", "info1", null, 0);
-        scanData("stu");
+        //scanData("stu");
     }
 
     /**
