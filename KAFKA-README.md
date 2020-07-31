@@ -22,7 +22,7 @@ Kafka 是一个分布式的基于发布/订阅模式的消息队列(Message Queu
 
 ## <span id="Kafka基础架构">Kafka基础架构</span>
 Kafka基础架构：  
-![Kafka基础架构](http://cdn.17coding.info/WeChat%20Screenshot_20190325215237.png))
+![Kafka基础架构](http://cdn.17coding.info/WeChat%20Screenshot_20190325215237.png)
 
 **Messages And Batches**  
 Kafka 的基本数据单元被称为 message(消息)，为减少网络开销，提高效率，多个消息会被放入同一批次 (Batch) 中后再写入。
@@ -40,7 +40,8 @@ Kafka 的基本数据单元被称为 message(消息)，为减少网络开销，�
 >同一个 topic 在不同的分区的数据是不重复的，partition 的表现形式就是一个一个的文件夹！
 
 >**Offset**  
->Partition 中的每条消息都会被分配一个有序的 id（Offset）。Kafka 只保证每个 Partition中的顺序，不保证多个Partition的顺序。
+>Partition 中的每条消息都会被分配一个有序的 id（Offset）；用于保证每个 Partition中的顺序。
+
 7. Replica：副本，为保证集群中的某个节点发生故障时，该节点上的 partition 数据不丢失，且 kafka 仍然能够继续工作，
 kafka 提供了副本机制，一个 topic 的每个分区都有若干个副本，一个 leader 和若干个 follower；
 >follower 和 leader 绝对是在不同的机器，同一机器对同一个分区也只可能存放一个副本（包括自己）。
@@ -162,5 +163,60 @@ log 文件就实际是存储 message 的地方，而 index 和 timeindex 文件�
 1. 基于时间，默认配置是168小时（7天）；
 2. 基于大小，默认配置是1073741824。
 >需要注意的是，kafka 读取特定消息的时间复杂度是 O(1)，所以这里删除过期的文件并不会提高 kafka 的性能！
+
+### <span id="消费数据">消费数据</span>
+消息存储在log文件后，消费者就可以进行消费了。与生产消息相同的是，消费者在拉取消息的时候也是找leader去拉取。
+
+多个消费者可以组成一个消费者组（consumer group），每个消费者组都有一个组id！同一个消费组者的消费者可以消费同一topic下不同分区的数据，
+但是不会组内多个消费者消费同一分区的数据！！！可能有点绕。看下图：  
+
+![消费者组消费不同分区消息](http://cdn.17coding.info/WeChat%20Screenshot_20190325215326.png)
+
+图示是消费者组内的消费者小于 partition 数量的情况，所以会出现某个消费者消费多个 partition 数据的情况，
+消费的速度也就不及只处理一个 partition 的消费者的处理速度！如果是消费者组的消费者多于 partition 的数量，
+是不会出现多个消费者消费同一个 partition 的数据的！多出来的消费者不消费任何partition的数据。  
+所以在实际的应用中，建议**消费者组的 consumer 的数量与 partition 的数量一致！**  
+
+问题又来了，一个 consumer group 中有多个 consumer，一个 topic 有多个 partition，所以必然会涉及到 partition 的分配问题，
+即确定那个 partition 由哪个 consumer 来消费。
+
+**分区分配策略**  
+Kafka 有两种分配策略，一是 RoundRobin，一是 Range。
+
+**Range**  
+是对每个 topic 而言的。首先按照分区序号排序，然后将消费者排序。分区数/消费者数=m，如果m！=0，前m个消费者多消费一个分区（每个 topic）；  
+如果有多个 topic 的 m 都 不等于 0，那么，前 m 个消费者将多消费多个分区，造成倾斜，这就是 Range 的一个很明显的弊端。
+
+**RoundRobin**  
+RoundRobin 策略的工作原理：将所有主题的分区组成 TopicAndPartition 列表，然后对 TopicAndPartition 列表按照 hashCode 进行排序，
+分发给每一个消费者。（其实就是按分区名 hash 排序后平均分配给每一个消费者的线程）
+
+使用RoundRobin策略有两个前提条件必须满足：
+1. 同一个Consumer Group里面的所有消费者的 num.streams(这玩意他丫的究竟是啥) 必须相等；
+2. 每个消费者订阅的主题必须相同。
+
+目前还不能自定义分区分配策略，只能通过 partition.assignment.strategy 参数选择 range 或 roundrobin。
+>partition.assignment.strategy参数默认的值是range。
+
+**分区分配的触发条件**  
+- 同一个 Consumer Group 内新增消费者；
+- 消费者离开当前所属的 Consumer Group，包括 shuts down 或 crashes(崩~溃~)；
+- 订阅的主题新增分区。
+
+**offset**  
+前面曾多次提到 segment 和 offset，查找消息的时候是如何利用 segment+offset 配合查找的呢？
+现以需要查找一个 offset 为 368801 的 message 的过程为例，先看看下面的图：  
+![图片裂开就别看了](http://cdn.17coding.info/WeChat%20Screenshot_20190325215338.png)  
+
+1. 先找到 offset 的 368801message 所在的 segment 文件（利用二分法查找），这里找到的就是在第二个 segment 文件；
+2. 打开找到的 segment 中的 .index 文件（也就是 368796.index 文件，该文件起始偏移量为 368796+1，
+我们要查找的 offset 为 368801 的 message 在该 index 内的偏移量为 368796+5=368801，所以这里要查找的相对 offset为5）。
+由于该文件采用的是稀疏索引的方式存储着相对 offset 及对应 message 物理偏移量的关系，所以直接找相对 offset 为 5 的索引找不到，
+这里同样利用二分法查找相对 offset 小于或者等于指定的相对 offset 的索引条目中最大的那个相对 offset，所以找到的是相对 offset 为 4 的这个索引；
+3. 根据找到的相对 offset 为 4 的索引确定 message 存储的物理偏移位置为 256。打开数据文件，
+从位置为 256 的那个地方开始顺序扫描直到找到 offset 为 368801 的那条 Message。
+
+这套机制是建立在 offset 为有序的基础上，利用 segment+有序offset+稀疏索引+二分查找+顺序查找 等多种手段来高效的查找数据！
+
 
 
