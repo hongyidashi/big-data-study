@@ -7,6 +7,9 @@
     + [分区策略](#分区策略)
     + [数据可靠性保证](#数据可靠性保证)
     + [保存数据](#保存数据)
+5. [Kafka事务](#Kafka事务)
+    + [Producer事务](#Producer事务) 
+    + [Consumer事务](#Consumer事务) 
 
 ## <span id="Kafka概述">Kafka概述</span>
 Kafka 是一个分布式的基于发布/订阅模式的消息队列(Message Queue)，主要应用于大数据实时处理领域。
@@ -218,5 +221,24 @@ RoundRobin 策略的工作原理：将所有主题的分区组成 TopicAndPartit
 
 这套机制是建立在 offset 为有序的基础上，利用 segment+有序offset+稀疏索引+二分查找+顺序查找 等多种手段来高效的查找数据！
 
+**offset的维护**  
+Kafka 0.9 版本之前，consumer 默认将 offset 保存在 Zookeeper 中，从 0.9 版本开始，
+consumer 默认将 offset 保存在 Kafka 一个内置的 topic 中，该 topic 为__consumer_offsets。
 
+## <span id="Kafka事务">Kafka事务</span>
+这块看一眼就行了  
 
+Kafka 从 0.11 版本开始引入了事务支持。事务可以保证 Kafka 在 Exactly Once 语义的基础上，生产和消费可以跨分区和会话，
+要么全部成功，要么全部失败。
+
+### <span id="Producer事务">Producer事务</span>
+为了实现跨分区跨会话的事务，需要引入一个全局唯一的 Transaction ID，并将 Producer 获得的 PID 和 Transaction ID 绑定。
+这样当 Producer 重启后就可以通过正在进行的 Transaction ID 获得原来的 PID。  
+为了管理 Transaction，Kafka 引入了一个新的组件 Transaction Coordinator。
+Producer 就是通过和 Transaction Coordinator 交互获得 Transaction ID 对应的任务状态。
+Transaction Coordinator 还负责将事务所有写入 Kafka 的一个内部 Topic，这样即使整个服务重启，由于事务状态得到保存，
+进行中的事务状态可以得到恢复，从而继续进行。
+
+### <span id="Consumer事务">Consumer事务</span>
+上述事务机制主要是从 Producer 方面考虑，对于 Consumer 而言，事务的保证就会相对较弱，尤其时无法保证 Commit 的信息被精确消费。
+这是由于 Consumer 可以通过 offset 访问任意信息，而且不同的 Segment File 生命周期不同，同一事务的消息可能会出现重启后被删除的情况。
