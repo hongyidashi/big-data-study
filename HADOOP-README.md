@@ -604,7 +604,7 @@ FairScheduler 允许保障性的分配最小资源到队列。
 分布式文件系统很早就已经出现了，以 Sun 在 1984 年开发的“Network File System (NFS)”为代表，
 那时候解决的主要问题，是网络形态的磁盘，把磁盘从主机中独立出来。这样不仅可以获得**更大的容量**，而且还可以**随时切换主机**，
 还可以实现**数据共享、备份、容灾等**，因为数据是电脑中最重要的资产。NFS 的数据通信图如下：  
-![NFS数据通信图](https://mmbiz.qpic.cn/mmbiz_png/UicsouxJOkBeRUJ0LJDT6bSUDQtkEHMEPNfC6AnujgsSF6jtMV4YdFU2mZ7I34C4qCp4zWfIutNzmg9Z35JF5IA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![NFS数据通信图](https://images2017.cnblogs.com/blog/1054216/201709/1054216-20170901171106405-2068615273.jpg)
 
 部署在主机上的客户端，通过 TCP/IP 协议把文件命令转发到远程文件 Server 上执行，整个过程对主机用户透明（即用户无感知）。
 
@@ -648,7 +648,7 @@ FairScheduler 允许保障性的分配最小资源到队列。
 
 **有中心节点**  
 以 GFS 为代表（跟 HDFS 差不多），中心节点负责文件定位、维护文件 meta 信息、故障检测、数据迁移等管理控制的职能，下图是 GFS 的架构图：  
-![GFS架构图](https://mmbiz.qpic.cn/mmbiz_png/UicsouxJOkBeRUJ0LJDT6bSUDQtkEHMEPjibOolOB8u4FCQtrQgRB9CtWfXyT9aI1QOchf37qJ2EuRdzfO51r3CA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![GFS架构图](https://img-blog.csdnimg.cn/20190610211005420.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L2RyZWFtdnlwcw==,size_16,color_FFFFFF,t_70)
 
 该图中 GFS master 即为 GFS 的中心节点，GF chunk server 为 GFS 的存储节点。其操作路径如下：
 1. Client 向中心节点请求“查询某个文件的某部分数据”；
@@ -666,7 +666,7 @@ FairScheduler 允许保障性的分配最小资源到队列。
 以 ceph 为代表，每个节点都是自治的、自管理的，整个 ceph 集群只包含一类节点，
 如下图 (最下层红色的 RADOS 就是 ceph 定义的“同时包含 meta 数据和文件数据”的节点)：
 
-![ceph架构图](https://mmbiz.qpic.cn/mmbiz_png/UicsouxJOkBeRUJ0LJDT6bSUDQtkEHMEPQ9JQ8pZ2LXb3syT57yicU5VDzX8EdAv27WUEyEjv43xM9XuibxsaM0LA/640?wx_fmt=png&tp=webp&wxfrom=5&wx_lazy=1&wx_co=1)
+![ceph架构图](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1596392632776&di=355641ec20b1494bd278d6a63b6eaddc&imgtype=0&src=http%3A%2F%2Fwww.chinastor.com%2Fuploads%2Fallimg%2F160808%2F101I3I56-0.png)
 
 无中心化的最大优点是解决了中心节点自身的瓶颈，这也就是 ceph 号称可以无限向上扩容的原因。但由 Client 直接和 Server 通信，
 那么 Client 必须要知道，当对某个文件进行操作时，它该访问集群中的哪个节点。ceph 提供了一个很强大的原创算法来解决这个问题——[CRUSH](https://zhuanlan.zhihu.com/p/59317425) 算法。
