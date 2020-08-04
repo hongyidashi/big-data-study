@@ -17,6 +17,7 @@
         <module>flume-demo</module>
         <module>kafka-demo</module>
         <module>hbase-demo</module>
+        <module>scala</module>
     </modules>
 
 </project>
