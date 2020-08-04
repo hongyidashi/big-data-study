@@ -445,26 +445,26 @@ YARN 的核心观点是将对于集群的资源管理和作业调度分割开来
 ![YARN架构](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1595761805591&di=59b8856e8e070d1ccc4f57d0fa81c259&imgtype=0&src=http%3A%2F%2Fjavaquan.com%2Ffile%2Fimage%2F20190130%2F2019013014022516772549.PNG)
 YARN 主要由 ResourceManager、NodeManager、ApplicationMaster 和 Container 等组件构成。  
 
-1. ResourceManager(RM)
+1. ResourceManager(RM)  
 RM 是一个全局的资源管理器，管理整个集群的计算资源，并将这些资源分配给应用程序。
 - 处理来自客户端的请求；
 - 启动和监控 ApplicationMaster，并在它运行失败时重新启动它；
 - 监控 NodeManager；
 - 资源管理与调度，接收来自 ApplicationMaster 的资源申请请求，并为之分配资源。
 
-2. ApplicationMaster(AM)
+2. ApplicationMaster(AM)  
 应用程序级别的，管理运行在 YARN 上的应用程。
 - 用户提交的每个应用程序均包含一个 AM，它可以运行在 RM 以外的机器上；
 - 负责数据切分；
 - 为应用程序申请资源并分配给内部的任务；
 - 任务监控与容错。
 
-3. NodeManager(NM)
+3. NodeManager(NM)  
 YARN 中每个节点上的代理，它管理 Hadoop 集群中单个计算节点。
 - 管理单节点上的资源；
 - 处理 RM 和 AM 的命令。
 
-4. Container
+4. Container  
 Container 是 YARN 中资源的抽象，它封装了某个节点上的多维度资源，如内存、CPU、磁盘、网络等。  
 Container 由 AM 向 RM 申请的，由 RM 中的资源调度器异步分配给 AM。Container 的运行是由 AM 向资源所在的 NM 发起。
 
