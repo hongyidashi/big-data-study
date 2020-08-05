@@ -10,4 +10,6 @@
 
 
 ## 番外
-[番外阅读-分布式文件系统](note/番外阅读-分布式文件系统.md) 2020-8-3 完结撒花
+[番外阅读-分布式文件系统](note/番外阅读-分布式文件系统.md) 2020-8-3 完结撒花  
+[番外阅读-加签验签](https://mp.weixin.qq.com/s/puPTgherQ8H9GSoW3YLMpw)  
+[番外阅读-Kafka和RabbitMQ](note/番外阅读-Kafka和RabbitMQ.md)  努力中...  
