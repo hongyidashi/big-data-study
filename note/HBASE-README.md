@@ -6,10 +6,14 @@
 5. [HBase读流程](#HBase读流程)
 6. [Region和Master补充](#Region和Master补充)
     + [Region分配](#Region分配)
+    + [Region-Split](#Region-Split)
     + [RegionServer上线](#RegionServer上线)
     + [RegionServer下线](#RegionServer下线)
     + [Master上线](#Master上线)
     + [Master下线](#Master下线)
+7. [协处理器](#协处理器)
+    + [起源](#起源)
+    + [协处理器类型](#协处理器类型)
 
 ## <span id="HBase概述">HBase概述</span>
 HBase 是一种分布式、可扩展、支持海量数据存储的 NoSQL 数据库。
@@ -108,6 +112,24 @@ HDFS 为 HBase 提供最终的底层数据存储服务，同时为 HBase 提供�
 6. 向客户端发送 ack;
 7. 等达到 MemStore 的刷写时机后，将数据刷写到 HFile。
 
+**一些细节**  
+1. HBase 默认设置 autoflush=true，表示put请求直接会提交给服务器进行处理；用户可以设置 autoflush=false，
+这样的话 put 请求会首先放到本地 buffer，等到本地 buffer 大小超过一定阈值（默认为2M，可以通过配置文件配置）之后才会提交。
+设置为 false 可以极大地提升写入性能，但是因为没有保护机制，如果客户端崩溃的话会导致提交的请求丢失。
+
+2. 服务器端 RegionServer 接收到客户端的写入请求后，首先会反序列化为 Put 对象，然后执行各种检查操作，比如检查region是否是只读、
+memstore 大小是否超过 blockingMemstoreSize 等。检查完成之后，就会执行如下核心操作：
+![服务器端流程图](http://hbasefly.com/wp-content/uploads/2016/03/100.png)  
+   1. 获取行锁、Region更新共享锁： HBase中使用行锁保证对同一行数据的更新都是互斥操作，用以保证更新的原子性；
+   2. 开始写事务：获取 write number，用于实现 MVCC(多版本控制，MySQL 中的一个道理)，实现数据的非锁定读，在保证读写一致性的前提下提高读取性能；
+   3. 写缓存 memstore：HBase并不会直接将数据落盘，而是先写入缓存，等缓存满足一定大小之后再一起落盘；
+   4. Append HLog：该步骤就是将数据构造为 WALEdit 对象，然后顺序写入 HLog 中；
+   5. 释放行锁以及共享锁；
+   6. Sync HLog：HLog 真正 sync 到 HDFS，在释放行锁之后执行 sync 操作是为了尽量减少持锁时间，提升写性能。如果Sync失败，
+   执行回滚操作将 memstore 中已经写入的数据移除；
+   7. 结束写事务：此时该线程的更新操作才会对其他读请求可见，更新才实际生效；
+   8. flush memstore：当写缓存满64M之后，会启动flush线程将数据刷新到硬盘。
+
 **MemStore Flush 数据刷写**  
 ![MemStore Flush示意图](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/MemStore%20Flush.jpg) 
  
@@ -168,6 +190,16 @@ Compaction 分为两种，分别是 Minor Compaction 和 Major Compaction。
 master 就给这个 region server 发送一个装载请求，把 region 分配给这个 region server。region server 得到请求后，
 就开始对此 region 提供服务。
 
+### <span id="Region-Split">Region-Split</span>
+默认情况下，每个 Table 起初只有一个 Region，随着数据的不断写入，Region 会自动进 行拆分。刚拆分时，
+两个子 Region 都位于当前的 Region Server，但处于负载均衡的考虑， HMaster 有可能会将某个 Region 转移给其他的 Region Server。
+
+![Region-Split](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/Region%20Split.jpg)
+
+**Region Split 时机**：  
+当 1 个 region 中的某个 Store 下所有 StoreFile 的总大小超过 Min(R^2 * "hbase.hregion.memstore.flush.size",hbase.hregion.max.filesize")，
+该 Region 就会进行拆分，其中 R 为当前 Region Server 中属于该 Table 的个数(0.94 版本之后)。
+
 ### <span id="RegionServer上线">RegionServer上线</span>
 master 使用 zookeeper 来跟踪 region server 状态。当某个 region server 启动时，
 会首先在 zookeeper 上的 server 目录下建立代表自己的文件，并获得该文件的独占锁。由于 master 订阅了 server 目录上的变更消息，
@@ -201,3 +233,52 @@ master 启动进行以下步骤:
 因此 master 下线短时间内对整个 hbase 集群没有影响。
 从上线过程可以看到，master 保存的信息全是可以冗余信息（都可以从系统其它地方收集到或者计算出来），因此，
 一般 hbase 集群中总是有一个 master 在提供服务，还有一个以上的’master’在等待时机抢占它的位置。
+
+## <span id="协处理器">协处理器</span>
+
+### <span id="起源">起源</span>
+在使用 HBase 时，如果你的数据量达到了数十亿行或数百万列，此时能否在查询中返回大量数据将受制于网络的带宽，即便网络状况允许，
+但是客户端的计算处理也未必能够满足要求。在这种情况下，协处理器（Coprocessors）应运而生。
+它允许你将业务计算代码放入在 RegionServer 的协处理器中，将处理好的数据再返回给客户端，这可以极大地降低需要传输的数据量，
+从而获得性能上的提升。同时协处理器也允许用户扩展实现 HBase 目前所不具备的功能，如权限校验、二级索引、完整性约束等。
+
+### <span id="协处理器类型">协处理器类型</span>
+**Observer协处理器**  
+1. 功能  
+Observer(观察者) 协处理器类似于关系型数据库中的触发器，当发生某些事件的时候这类协处理器会被 Server 端调用。通常可以用来实现下面功能：
+- 权限校验：在执行 Get 或 Put 操作之前，您可以使用 preGet 或 prePut 方法检查权限；
+- 完整性约束：HBase 不支持关系型数据库中的外键功能，可以通过触发器在插入或者删除数据的时候，对关联的数据进行检查；
+- 二级索引：可以使用协处理器来维护二级索引。
+
+2. 类型  
+当前 Observer 协处理器有以下四种类型：
+- RegionObserver : 允许观察 Region 上的事件，例如 Get 和 Put 操作；
+- RegionServerObserver : 允许观察与 RegionServer 操作相关的事件，例如启动，停止或执行合并，提交或回滚；
+- MasterObserver : 允许观察与 HBase Master 相关的事件，例如表创建，删除或 schema 修改；
+- WalObserver : 允许观察与预写日志（WAL）相关的事件。
+
+3. 接口  
+以上四种类型的 Observer 协处理器均继承自 Coprocessor 接口，这四个接口中分别定义了所有可用的钩子方法，
+以便在对应方法前后执行特定的操作。通常情况下，我们并不会直接实现上面接口，而是继承其 Base 实现类，
+Base 实现类只是简单空实现了接口中的方法，这样我们在实现自定义的协处理器时，就不必实现所有方法，只需要重写必要方法即可。
+
+![观察者协处理器实现类](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/%E8%A7%82%E5%AF%9F%E8%80%85%E5%8D%8F%E5%A4%84%E7%90%86%E5%99%A8%E5%AE%9E%E7%8E%B0.jpg)
+
+4. 执行流程  
+![观察者协处理器执行流程](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/%E8%A7%82%E5%AF%9F%E8%80%85%E5%8D%8F%E5%A4%84%E7%90%86%E5%99%A8%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B.jpg)
+
+- 客户端发出 put 请求；
+- 该请求被分派给合适的 RegionServer 和 region；
+- coprocessorHost 拦截该请求，然后在该表的每个 RegionObserver 上调用 prePut()；
+- 如果没有被 prePut() 拦截，该请求继续送到 region，然后进行处理；
+- region 产生的结果再次被 CoprocessorHost 拦截，调用 postPut()；
+- 假如没有 postPut() 拦截该响应，最终结果被返回给客户端。
+
+**Endpoint协处理器**  
+Endpoint 协处理器类似于关系型数据库中的存储过程。客户端可以调用 Endpoint 协处理器在服务端对数据进行处理，然后再返回。
+
+以聚集操作为例，如果没有协处理器，当用户需要找出一张表中的最大数据，即 max 聚合操作，就必须进行全表扫描，然后在客户端上遍历扫描结果，
+这必然会加重了客户端处理数据的压力。利用 Coprocessor，用户可以将求最大值的代码部署到 HBase Server 端，H
+Base 将利用底层 cluster 的多个节点并发执行求最大值的操作。即在每个 Region 范围内执行求最大值的代码，
+将每个 Region 的最大值在 Region Server 端计算出来，仅仅将该 max 值返回给客户端。
+之后客户端只需要将每个 Region 的最大值进行比较而找到其中最大的值即可。
