@@ -1,6 +1,7 @@
 package com.hl.grammar
 
 import util.control.Breaks._
+
 /**
  * 描述:
  * 作者: panhongtong
@@ -39,14 +40,14 @@ object Grammar02 {
     println(res2)
     println("---------------------")
 
-    for (i <- Range(0,10,2)) {
+    for (i <- Range(0, 10, 2)) {
       println(i)
     }
     println("---------------------")
 
     var num3 = 0
     breakable(
-      while (num3 <10) {
+      while (num3 < 10) {
         if (num3 == 7) {
           break()
         }
@@ -57,5 +58,17 @@ object Grammar02 {
     println("OK,出来了")
     println("---------------------")
 
+    println("res:"+getRes(num1,num2,'+'))
+
+  }
+
+  def getRes(n1: Int, n2: Int, oper: Char) = {
+    if (oper == '+') {
+      n1 + n2
+    } else if (oper == '-') {
+      n1 - n2
+    } else {
+      null
+    }
   }
 }
