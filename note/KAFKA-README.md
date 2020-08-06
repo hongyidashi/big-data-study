@@ -108,9 +108,9 @@ producer 需要将发送的数据封装成一个 ProducerRecord 对象：
 为保证 producer 发送的数据，能可靠的发送到指定的 topic，topic 的每个 partition 收到 producer 发送的数据后，
 都需要向 producer 发送 ack(acknowledgement 确认收到)，如果 producer 收到 ack，就会进行下一轮的发送，否则重新发送数据。
 
->ack应答机制的3个级别
->0：代表 producer 往集群发送数据不需要等到集群的返回，不确保消息发送成功。安全性最低但是效率最高；
->1：代表 producer 往集群发送数据只要 leader 应答就可以发送下一条，只确保 leader 发送成功；
+>ack应答机制的3个级别  
+>0：代表 producer 往集群发送数据不需要等到集群的返回，不确保消息发送成功。安全性最低但是效率最高；  
+>1：代表 producer 往集群发送数据只要 leader 应答就可以发送下一条，只确保 leader 发送成功；  
 >all：代表 producer 往集群发送数据需要所有的 follower 都完成从 leader 的同步才会发送下一条，
 >确保 leader 发送成功和所有的副本都完成备份；安全性最高，但是效率最低。
 
