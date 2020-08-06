@@ -10,6 +10,7 @@
 5. [Kafka事务](#Kafka事务)
     + [Producer事务](#Producer事务) 
     + [Consumer事务](#Consumer事务) 
+5. [Kafka和Flume](#Kafka和Flume)
 
 ## <span id="Kafka概述">Kafka概述</span>
 Kafka 是一个分布式的基于发布/订阅模式的消息队列(Message Queue)，主要应用于大数据实时处理领域。
@@ -242,3 +243,18 @@ Transaction Coordinator 还负责将事务所有写入 Kafka 的一个内部 Top
 ### <span id="Consumer事务">Consumer事务</span>
 上述事务机制主要是从 Producer 方面考虑，对于 Consumer 而言，事务的保证就会相对较弱，尤其时无法保证 Commit 的信息被精确消费。
 这是由于 Consumer 可以通过 offset 访问任意信息，而且不同的 Segment File 生命周期不同，同一事务的消息可能会出现重启后被删除的情况。
+
+### <span id="Kafka和Flume">Kafka和Flume</span>
+kafka 和 flume 都是日志系统，kafka 是分布式消息中间件，自带存储；flume 每一部分都是可以定制。kafka 更合适做日志缓存，
+flume数据采集部分做的很好，可以定制很多数据源，减少开发量。
+
+**Kafka和Flume的比较**
+
+Flume：是一个专用工具，被设计为旨在往 HDFS、HBase 发送数据，它对 HDFS 有特殊的优化，并且集成了 Hadoop 的安全特性。  
+Kafka：可以有许多生产者和很多的消费者共享多个主题 Topics；  
+
+Flume：可以使用拦截器实时处理数据，这些对数据屏蔽或者过量是很有用的；  
+Kafka：需要外部的流处理系统才能做到。  
+
+Flume：不支持副本事件。如果 Flume 代理的一个节点崩溃了，即使使用了可靠的文件管道方式，也将丢失这些事件直到你恢复这些磁盘；  
+Kafka：支持副本事件。一个副本崩溃了，依旧可以得到数据。  
