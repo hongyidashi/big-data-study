@@ -7,16 +7,25 @@ package com.hl.trait_
  **/
 object TraitDemo {
   def main(args: Array[String]): Unit = {
-    var objA = new A
+    // 动态混入
+    val objA = new A with trait2
     var objB = new B
 
     objA.getConnect()
     objB.getConnect()
+
+    objA.sayHi()
   }
 }
 
 trait trait1 {
   def getConnect()
+}
+
+trait trait2 {
+  def sayHi(): Unit = {
+    println("Hi")
+  }
 }
 
 class A extends trait1 {
