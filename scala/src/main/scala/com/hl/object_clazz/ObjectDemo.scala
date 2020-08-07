@@ -1,4 +1,6 @@
-package com.hl.objcet
+package com.hl.object_clazz
+
+import scala.beans.BeanProperty
 
 /**
  * 描述: 类示例
@@ -17,6 +19,12 @@ object ObjectDemo {
 
     val dog3 = new Dog("弟弟", 5)
     println(dog3)
+
+    // 类也可以加lazy
+    lazy val cat1 = new Cat("GDX",3)
+    println(cat1)
+    println(cat1.inAge)
+    println(cat1.getAge)
   }
 }
 
@@ -33,4 +41,16 @@ class Dog {
 
   override def toString = s"Dog($name, $age)"
 
+}
+
+class Cat(inName: String,val inAge: Int) {
+
+  @BeanProperty
+  var name = inName
+  @BeanProperty
+  var age = inAge
+
+  println(inName)
+
+  override def toString = s"Cat($name)"
 }
