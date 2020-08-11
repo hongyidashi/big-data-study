@@ -562,7 +562,7 @@ FIFO Scheduler 把应用按提交的顺序排成**一个队列**，这是一个*
 
 ---
 
-3. Fair Scheduler
+3. Fair Scheduler  
 公平调度是一种对于全局资源，对于所有应用作业来说，都均匀分配的资源分配方法。默认情况，公平调度器 Fair Scheduler 基于内存来安排公平调度策略。
 也可以配置为同时基于内存和CPU来进行调度（Dominant Resource Fairness）。在一个队列内，可以使用 FIFO、FAIR、DRF 调度策略对应用进行调度。
 FairScheduler 允许保障性的分配最小资源到队列。
