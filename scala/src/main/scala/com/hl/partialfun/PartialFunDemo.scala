@@ -7,7 +7,7 @@ package com.hl.partialfun
  **/
 object PartialFunDemo {
   def main(args: Array[String]): Unit = {
-    val list = List(1,2,3,4,"hello")
+    val list = List(1,2,3,4,"hello",6.0,7.0)
 
     // 参数：[输入类型，输出类型]
     val partialFunc = new PartialFunction[Any,Int] {
@@ -21,5 +21,16 @@ object PartialFunDemo {
 
     val resList = list.collect(partialFunc)
     println(resList)
+
+    // 简化写法
+    def pf: PartialFunction[Any,Int] = {
+      case elem:Int => elem + 2
+      case elem:Double => (elem + 5).toInt
+    }
+    val resList2 = list.collect(pf)
+    println(resList2)
+
+    val resList3 = list.collect{case elem:Int => elem + 3}
+    println(resList3)
   }
 }
