@@ -18,6 +18,7 @@
         <module>kafka-demo</module>
         <module>hbase-demo</module>
         <module>scala</module>
+        <module>spark-demo</module>
     </modules>
 
 </project>
