@@ -1,7 +1,4 @@
-package com.hl.spark.core.rdd.operator
-
-import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
+package com.hl.spark.core.rdd.operator.conversion
 
 /**
  * 描述: coalesce-缩减分区数量 repartition-重分区

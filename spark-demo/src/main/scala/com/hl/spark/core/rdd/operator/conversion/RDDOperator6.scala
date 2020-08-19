@@ -1,4 +1,4 @@
-package com.hl.spark.core.rdd.operator
+package com.hl.spark.core.rdd.operator.conversion
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{HashPartitioner, Partitioner, SparkConf, SparkContext}

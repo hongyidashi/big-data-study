@@ -1,4 +1,4 @@
-package com.hl.spark.core.rdd.operator
+package com.hl.spark.core.rdd.operator.conversion
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
@@ -16,14 +16,14 @@ object RDDOperator8 {
       ("B", 4), ("B", 5), ("C", 6), ("A", 7)
     ), 2)
 
-    // 第一个参数表示的是将计算的第一个值转换结构
-    // 第二个参数表示的是区内计算规则
-    // 第三个参数表示的是区间计算规则
     val value: RDD[(String, (Int, Int))] = rdd.combineByKey(
+      // 第一个参数表示的是将计算的第一个值转换结构
       v => (v, 1),
+      // 第二个参数表示的是区内计算规则
       (t: (Int, Int), v) => {
         (t._1 + v, t._2 + 1)
       },
+      // 第三个参数表示的是区间计算规则
       (t1: (Int, Int), t2: (Int, Int)) => {
         (t1._1 + t2._1, t1._2 + t2._2)
       }
