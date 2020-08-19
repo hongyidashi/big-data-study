@@ -1,5 +1,8 @@
 package com.hl.spark.core.rdd.operator.conversion
 
+import org.apache.spark.rdd.RDD
+import org.apache.spark.{SparkConf, SparkContext}
+
 /**
  * 描述: coalesce-缩减分区数量 repartition-重分区
  * repartition 底层调用的是 coalesce，但 coalesce 不能增加分区，因为 coalesce
