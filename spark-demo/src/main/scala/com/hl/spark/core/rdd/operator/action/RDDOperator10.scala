@@ -11,7 +11,7 @@ import org.apache.spark.rdd.RDD
 object RDDOperator10 {
   def main(args: Array[String]): Unit = {
     val sc = new SparkContext(new SparkConf().setMaster("local").setAppName("RDD-ACTION"))
-    val rdd: RDD[Int] = sc.makeRDD(List(1, 2, 3, 4, 5))
+    val rdd: RDD[Int] = sc.makeRDD(List(4, 2, 3, 1, 5))
 
     // 简化，规约
     val i: Int = rdd.reduce(_ + _)
@@ -22,6 +22,22 @@ object RDDOperator10 {
     val array: Array[Int] = rdd.collect()
     println(array)
 
+    // 计数
+    val countL: Long = rdd.count()
+    println(countL)
+    println("------------------------")
+
+    // 排序后取3个
+    val ints: Array[Int] = rdd.takeOrdered(3)
+    ints.foreach(println)
+    println("------------------------")
+
+    val rdd2: RDD[Int] = sc.makeRDD(List(1,2,3,4))
+    // 这里的foreach是方法，方法是在当前节点执行的
+    rdd2.collect().foreach(println)
+    println("*************************")
+    // 这里的foreach是算子，算子是在分布式节点Executor执行的
+    rdd2.foreach(println)
 
   }
 }
