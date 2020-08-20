@@ -19,6 +19,7 @@
         <module>hbase-demo</module>
         <module>scala</module>
         <module>spark-demo</module>
+        <module>summer-framework</module>
     </modules>
 
 </project>
