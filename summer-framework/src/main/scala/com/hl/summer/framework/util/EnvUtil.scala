@@ -12,7 +12,7 @@ object EnvUtil {
     if (sc == null){
       // 如果获取不到环境对象，则创建并保存到共享内存中
       val sparkConf = new SparkConf()
-        .setMaster("local")
+        .setMaster("local[4]")
         .setAppName("sparkApplication")
       sc = new SparkContext(sparkConf)
       scLocal.set(sc)
