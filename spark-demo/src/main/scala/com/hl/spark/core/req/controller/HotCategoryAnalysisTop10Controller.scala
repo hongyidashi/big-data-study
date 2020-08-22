@@ -13,7 +13,7 @@ class HotCategoryAnalysisTop10Controller extends TController{
   private val service = new HotCategoryAnalysisTop10Service
 
   override def execute() {
-    val result: Array[(String, (Int, Int, Int))] = service.analysis()
+    val result = service.analysis()
     result.foreach(println)
   }
 }
