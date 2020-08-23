@@ -1,11 +1,13 @@
 package com.hl.spark.core.req.service
 
-import java.io
-
 import com.hl.spark.core.req.bean.HotCategory
 import com.hl.spark.core.req.dao.HotCategoryAnalysisTop10Dao
+import com.hl.spark.core.req.helper.HotCategoryAccumulator
 import com.hl.summer.framework.core.TService
+import com.hl.summer.framework.util.EnvUtil
 import org.apache.spark.rdd.RDD
+
+import scala.collection.mutable
 
 /**
  * 描述: 业务层
@@ -17,10 +19,71 @@ class HotCategoryAnalysisTop10Service extends TService {
   private val hotCategoryAnalysisTop10Dao = new HotCategoryAnalysisTop10Dao
 
   /**
+   * 采用累加器
    *
    * @return
+   * HotCategory(20,6098,1776,1244)
+   * HotCategory(9,6045,1736,1230)
    */
-  override def analysis() = {
+  def analysis() = {
+    // 读取数据
+    val fileRDD: RDD[String] = hotCategoryAnalysisTop10Dao.readFile("spark-demo/input/user_visit_action.txt")
+
+    val acc = new HotCategoryAccumulator
+    // 注册到环境
+    EnvUtil.getEnv().register(acc, "hotCategoryAccumulator")
+
+    fileRDD.foreach(line => {
+      val data = line.split("_")
+
+      if (data(6) != "-1") {
+        acc.add((data(6), "click"))
+
+      } else if (data(8) != "null") {
+        val ids = data(8).split(",")
+        ids.foreach(id => {
+          acc.add((id, "order"))
+        })
+
+      } else if (data(10) != "null") {
+        val ids = data(10).split(",")
+        ids.foreach(id => {
+          acc.add((id, "pay"))
+        })
+      } else {
+        Nil
+      }
+    })
+
+    // 获取累加器的值(只要value)，并对结果进行转换
+    val categories: mutable.Iterable[HotCategory] = acc.value.map(_._2)
+
+    categories.toList.sortWith((leftHC, rightHC) => {
+      if (leftHC.clickCount > rightHC.clickCount) {
+        true
+      } else if (leftHC.clickCount == rightHC.clickCount) {
+        if (leftHC.orderCount > rightHC.orderCount) {
+          true
+        } else if (leftHC.orderCount == rightHC.orderCount) {
+          leftHC.payCount > rightHC.payCount
+        } else {
+          false
+        }
+      } else {
+        false
+      }
+    }).take(10)
+
+  }
+
+  /**
+   * 采用实体类的方式传输
+   *
+   * @return
+   * (12,HotCategory(12,6095,1740,1218))
+   * (5,HotCategory(5,6011,1820,1132))
+   */
+  def analysis4() = {
     // 1. 读取数据
     val fileRDD: RDD[String] = hotCategoryAnalysisTop10Dao.readFile("spark-demo/input/user_visit_action.txt")
 
@@ -62,6 +125,7 @@ class HotCategoryAnalysisTop10Service extends TService {
 
   /**
    * 优化版本，使用flatMap构建数据模型，减少map
+   *
    * @return
    */
   def analysis3() = {
@@ -94,6 +158,7 @@ class HotCategoryAnalysisTop10Service extends TService {
 
   /**
    * 基础版
+   *
    * @return
    */
   def analysis2(): Array[(String, (Int, Int, Int))] = {
