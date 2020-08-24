@@ -25,7 +25,7 @@ class HotCategoryAnalysisTop10Service extends TService {
    * HotCategory(20,6098,1776,1244)
    * HotCategory(9,6045,1736,1230)
    */
-  def analysis() = {
+  override def analysis() = {
     // 读取数据
     val fileRDD: RDD[String] = hotCategoryAnalysisTop10Dao.readFile("spark-demo/input/user_visit_action.txt")
 
@@ -83,7 +83,7 @@ class HotCategoryAnalysisTop10Service extends TService {
    * (12,HotCategory(12,6095,1740,1218))
    * (5,HotCategory(5,6011,1820,1132))
    */
-  def analysis4() = {
+   def analysis4() = {
     // 1. 读取数据
     val fileRDD: RDD[String] = hotCategoryAnalysisTop10Dao.readFile("spark-demo/input/user_visit_action.txt")
 
@@ -111,10 +111,16 @@ class HotCategoryAnalysisTop10Service extends TService {
     val result = reduceRDD.collect().sortWith((left, right) => {
       val leftHC = left._2
       val rightHC = right._2
-      if (leftHC.clickCount > rightHC.clickCount |
-        leftHC.orderCount > rightHC.orderCount |
-        leftHC.payCount > rightHC.payCount) {
+      if (leftHC.clickCount > rightHC.clickCount) {
         true
+      } else if (leftHC.clickCount == rightHC.clickCount) {
+        if (leftHC.orderCount > rightHC.orderCount) {
+          true
+        } else if (leftHC.orderCount == rightHC.orderCount) {
+          leftHC.payCount > rightHC.payCount
+        } else {
+          false
+        }
       } else {
         false
       }
