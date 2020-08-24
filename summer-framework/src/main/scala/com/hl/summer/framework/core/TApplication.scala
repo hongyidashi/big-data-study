@@ -32,11 +32,12 @@ trait TApplication {
     }
 
     // 2. 业务逻辑
-    try {
+    op
+    /*try {
       op
     } catch {
       case ex: Exception => println("业务执行失败 ：" + ex.getMessage)
-    }
+    }*/
 
     // 3. 关闭环境
     if (t == "socket") {
