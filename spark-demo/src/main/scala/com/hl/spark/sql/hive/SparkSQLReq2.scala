@@ -4,7 +4,8 @@ import org.apache.spark.SparkConf
 import org.apache.spark.sql.SparkSession
 
 /**
- * 描述: 需求一
+ * 描述: 计算各个区域前三大热门商品，并备注上每个商品在主要城市中的分布比例，
+ * 超过两个城市用其他显示
  * 作者: panhongtong
  * 创建时间: 2020-08-25 15:54
  **/

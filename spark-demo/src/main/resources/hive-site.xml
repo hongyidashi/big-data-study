@@ -3,7 +3,7 @@
 <configuration>
     <property>
         <name>javax.jdo.option.ConnectionURL</name>
-        <value>jdbc:mysql://172.16.10.21:3306/metastore?createDatabaseIfNotExist=true</value>
+        <value>jdbc:mysql://172.16.10.21:3306/metastore?createDatabaseIfNotExist=true&amp;serverTimezone=UTC</value>
         <description>JDBC connect string for a JDBC metastore</description>
     </property>
     <property>

@@ -10,15 +10,17 @@ import org.apache.spark.sql.SparkSession
  **/
 object SparkSQLReq1 {
   def main(args: Array[String]): Unit = {
+    System.setProperty("HADOOP_USER_NAME", "root")
     // 构建环境对象
     val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SparkSQL")
-    val spark = SparkSession.builder().enableHiveSupport().config(sparkConf).getOrCreate()
+    val spark = SparkSession.builder().enableHiveSupport().config(sparkConf)
+    .config("spark.sql.warehouse.dir", "hdfs://hadoop103:9000/user/hive/warehouse").getOrCreate()
 
     // 隐式转换导入，这里的spark指的是环境对象，即上面那个我们自己构建的spark
     // 要求这个对象必须使用val
     import spark.implicits._
 
-    //spark.sql("create database sparksql")
+    spark.sql("create database sparksql")
 
     spark.sql("use sparksql")
 
