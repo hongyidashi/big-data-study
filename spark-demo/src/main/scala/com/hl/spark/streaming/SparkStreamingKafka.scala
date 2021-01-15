@@ -14,8 +14,10 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 object SparkStreamingKafka {
   def main(args: Array[String]): Unit = {
     // 准备环境
-    val sparkConf = new SparkConf().setMaster("local[*]").setAppName("SpartStreaming")
+    val sparkConf = new SparkConf().setMaster("local[2]").setAppName("SpartStreamingKafka")
     val ssc = new StreamingContext(sparkConf, Seconds(3))
+
+    ssc.checkpoint("spark-demo/cp/Kafka_Direct")
 
     // 定义Kafka参数
     val kafkaPara: Map[String, Object] = Map[String, Object](
@@ -32,20 +34,13 @@ object SparkStreamingKafka {
       ConsumerStrategies.Subscribe[String, String](Set("hl"), kafkaPara)
     )
 
-    // 将每条消息的KV取出
-    val valueDStream: DStream[String] = kafkaDStream.map(record => record.value())
+    val lines = kafkaDStream.map(_.value)
+    val words = lines.flatMap(_.split(" "))
+    val wordCounts = words.map(x => (x, 1L)).reduceByKey(_ + _)
+    wordCounts.print()
 
-    // 计算WordCount
-    valueDStream.flatMap(_.split(" "))
-      .map((_, 1))
-      .reduceByKey(_ + _)
-      .print()
-
-
-    // 启动采集器
+    // Start the computation
     ssc.start()
-
-    // 等待采集器的结束
     ssc.awaitTermination()
   }
 }

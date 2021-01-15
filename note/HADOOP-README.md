@@ -89,7 +89,7 @@ Hadoop会维护一个fsimage文件，也就是NameNode中metedata的镜像，但
 
 ### <span id="HDFS读写数据">HDFS读写数据</span>
 **写数据**
-![HDFS写数据流程](https://img2018.cnblogs.com/blog/1595409/201904/1595409-20190414145523723-826688867.png)
+![HDFS写数据流程](images/hadoop/hdfs写流程.png)
 1. 校验：客户端通过 DistributedFileSystem 模块向 NameNode 请求上传文件，NameNode 会检查目标文件是否已经存在，父目录是否存在;
 2. 响应：NameNode 返回是否可以上传的信号；
 3. 请求 NameNode：客户端对上传的数据根据块进行切片，并请求第一块 Block 上传到哪几个 DataNode 服务器上；
@@ -113,7 +113,7 @@ dn1收到一个 Packet 就会传给 dn2，dn2传给 dn3；dn1每传一个 Packet
 这样减少了读取数据时使用的聚合网络带宽，因为块只放在两个唯一的机架，而不是三个。
 
 **读数据**
-![HDFS读数据流程](https://img2018.cnblogs.com/blog/1595409/201904/1595409-20190414151226689-1541120599.png)
+![HDFS读数据流程](images/hadoop/hdfs读流程.png)
 1. 客户端通过 Distributed FileSystem 向 NameNode 请求下载文件，NameNode 通过查询元数据，找到文件块所在的 DataNode 地址进行返回；
 2. 挑选一台 DataNode（就近原则，然后随机）服务器，请求读取数据。当第一次读取完成之后，才进行第二次块的读取；
 3. DataNode 开始传输数据给客户端（从磁盘里面读取数据输入流，以 Packet 为单位来做校验）；
@@ -143,7 +143,7 @@ dn1收到一个 Packet 就会传给 dn2，dn2传给 dn3；dn1每传一个 Packet
 8. NameNode 将 fsimage.chkpoint 重新命名成 fsimage。
 
 ### <span id="DataNode工作机制">DataNode工作机制</span>
-![DataNode工作机制](https://img2018.cnblogs.com/blog/1721350/201907/1721350-20190724121237434-1189571085.png)
+![DataNode工作机制](images/hadoop/DataNode工作机制.png)
 1. 一个数据块在DataNode上以文件形式存储在磁盘上，包括两个文件，一个是数据本身，一个是元数据包括数据块的长度，块数据的校验和，以及时间戳；
 2. DataNode启动后向NameNode注册，通过后，周期性（1小时）的向NameNode上报所有的块信息；
 3. 心跳是每3秒一次，心跳返回结果带有NameNode给该DataNode的命令如复制块数据到另一台机器，或删除某个数据块。如果超过10分钟没有收到某个DataNode的心跳，则认为该节点不可用；
@@ -209,7 +209,7 @@ MapReduce的思想就是“**分而治之**”。
 ### <span id="MapReduce处理数据流程">MapReduce处理数据流程</span>
 
 #### <span id="总览">总览</span>
-![总体流程](https://img-blog.csdn.net/20170517152328185?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvYWlqaXVkdQ==/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center)
+![总体流程](images/hadoop/MapReduce处理数据流程.png)
 1. 首先Map节点对所划分的数据进行并行处理，从不同的输入数据产生相应的中间结果输出；
 2. 在进行Reduce之前，必须要等到所有的Map任务执行完成，且在进入Reduce之前会有一个过程将Map的输出结果进行汇总（shuffle），以便Reduce节点可以完全基于本节点上的数据计算最终的结果；
 3. 各个Reduce节点各自进行计算，各自负责处理不同的中间结果数据集合；
