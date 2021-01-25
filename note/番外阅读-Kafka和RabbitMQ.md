@@ -21,7 +21,7 @@
 多个生产者可以向同一个消息队列发送消息；但是，一个消息在被一个消息者处理的时候，这个消息在队列上会被锁住或者被移除并且其他消费者无法处理该消息。
 也就是说**一个具体的消息只能由一个消费者消费**。
 
-![消息队列](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/Kafka%E5%92%8CRabbitMQ/%E6%B6%88%E6%81%AF%E9%98%9F%E5%88%97.jpg)
+![消息队列](images/Kafka和RabbitMQ/消息队列.jpg)
 
 如果消费者处理一个消息失败了，消息系统一般会把这个消息放回队列，这样其他消费者可以继续处理。消息队列除了提供解耦功能之外，
 它还能够对生产者和消费者进行独立的伸缩（scale），以及提供对错误处理的容错能力。
@@ -29,7 +29,7 @@
 **发布/订阅**  
 发布/订阅（pub/sub）模式中，单个消息可以被**多个订阅者并发的获取和处理**。
 
-![发布/订阅](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/Kafka%E5%92%8CRabbitMQ/%E5%8F%91%E5%B8%83%3A%E8%AE%A2%E9%98%85.jpg)
+![发布/订阅](images/Kafka和RabbitMQ/发布:订阅.jpg)
 
 一般来说，订阅有两种类型：  
 1. 临时（ephemeral）订阅，这种订阅只有在消费者启动并且运行的时候才存在。一旦消费者退出，相应的订阅以及尚未处理的消息就会丢失；
@@ -49,14 +49,14 @@ RabbitMQ 使用**消息交换器**（交换机 Exchange）来实现发布/订阅
 每一个订阅了交换器的消费者都会创建一个队列；然后消息交换器会把生产的消息放入队列以供消费者消费。
 消息交换器也可以基于各种路由规则为一些订阅者过滤消息。
 
-![RabbitMQ消息交换器](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/Kafka%E5%92%8CRabbitMQ/RabbitMQ%E6%B6%88%E6%81%AF%E4%BA%A4%E6%8D%A2%E5%99%A8.jpg)
+![RabbitMQ消息交换器](images/Kafka和RabbitMQ/RabbitMQ消息交换器.jpg)
 
 RabbitMQ 支持临时和持久两种订阅类型，消费者可以调用 RabbitMQ 的 API 来选择想要的订阅类型。
 
 根据 RabbitMQ 的架构设计，也可以创建一种混合方法——多个订阅者形成一个组，然后在组内以竞争关系作为消费者去处理某个具体队列上的消息，
 这种由订阅者构成的组我们称为消费者组。按照这种方式，我们实现了发布/订阅模式，同时也能够很好的伸缩（scale-up）订阅者去处理收到的消息。
 
-![发布/订阅与队列的联合使用](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/Kafka%E5%92%8CRabbitMQ/%E5%8F%91%E5%B8%83%3A%E8%AE%A2%E9%98%85%E4%B8%8E%E9%98%9F%E5%88%97%E7%9A%84%E8%81%94%E5%90%88%E4%BD%BF%E7%94%A8.jpg)
+![发布/订阅与队列的联合使用](images/Kafka和RabbitMQ/发布:订阅与队列的联合使用.jpg)
 
 ## <span id="Kafka">Kafka</span>
 Kafka 不是消息中间件的一种实现，相反，它只是一种分布式流式系统。不同于基于队列和交换器的 RabbitMQ，

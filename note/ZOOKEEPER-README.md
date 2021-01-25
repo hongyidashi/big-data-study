@@ -85,7 +85,7 @@ Watcher（事件监听器），是 Zookeeper 中的一个很重要的特性。Zo
 - 可靠性：一旦一次更改请求被应用，更改的结果就会被持久化，直到被下一次更改覆盖。
 
 ## <span id="ZooKeeper架构">ZooKeeper架构</span>  
-![ZooKeeper集群](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/zookeeper/zk%E9%9B%86%E7%BE%A4.jpg)  
+![ZooKeeper集群](images/zookeeper/zk集群.jpg)  
 
 在 ZooKeeper 中没有选择传统的 Master/Slave 概念，而是引入了Leader、Follower 和 Observer 三种角色。
 
@@ -94,7 +94,7 @@ ZooKeeper 集群中的所有机器通过一个 Leader 选举过程来选定一�
 也不参与写操作的“过半写成功”策略，因此 Observer 机器可以在不影响写性能的情况下提升集群的读性能。
 
 各个角色作用如下：
-![zk集群角色职责](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/zookeeper/zk%E9%9B%86%E7%BE%A4%E8%A7%92%E8%89%B2%E8%81%8C%E8%B4%A3.jpg)
+![zk集群角色职责](images/zookeeper/zk集群角色职责.jpg)
 
 当 Leader 服务器出现网络中断、崩溃退出与重启等异常情况时，ZAB 协议就会进人恢复模式并选举产生新的Leader服务器。这个过程大致如下：
 1. Leader election（选举阶段）：节点在一开始都处于选举阶段，只要有一个节点得到超半数节点的票数，它就可以当选准 leader；
@@ -169,7 +169,7 @@ Paxos 算法是基于**消息传递且具有高度容错特性的一致性算法
 
 #### prepare 阶段
 Proposer 提案者：负责提出 proposal，每个提案者在提出提案时都会首先获取到一个具有全局唯一性的、递增的提案编号 N，
-即在整个集群中是唯一的编号 N，然后将该编号赋予其要提出的提案，在第一阶段是只将提案编号发送给所有的表决者；
+即在整个集群中是唯一的编号 N，然后将该编号赋予其要提出的提案，在第一阶段是只将提案编号发送给所有的表决者；  
 Acceptor 表决者：每个表决者在 accept 某提案后，会将该提案编号 N 记录在本地，
 这样每个表决者中保存的已经被 accept 的提案中会存在一个编号最大的提案，其编号假设为 maxN。
 每个表决者仅会 accept 编号大于自己本地 maxN 的提案，在批准提案时表决者会将以前接受过的最大编号的提案作为响应反馈给 Proposer。
@@ -216,7 +216,7 @@ ZooKeeper 在解决分布式数据一致性问题时并没有直接使用 Paxos 
 第一步需要 Leader 将写请求广播出去，让 Leader 问问 Followers 是否同意更新，
 如果超过半数以上的同意那么就进行 Follower 和 Observer 的更新（和 Paxos 一样）。
 
-![消息广播]()
+![消息广播](images/zookeeper/消息广播.jpg)
 
 #### FollowerQueues和ObserverQueues
 因为ZAB 需要让 Follower 和 Observer 保证顺序性，所以产生了这两个队列。  
@@ -233,6 +233,8 @@ ZooKeeper 在解决分布式数据一致性问题时并没有直接使用 Paxos 
 系统出现崩溃影响最大应该是 Leader 的崩溃，因为只有一个 Leader ，所以当 Leader 出现问题的时候势必需要重新选举 Leader 。
 
 Leader 选举可以分为两个不同的阶段，第一个是的 Leader 宕机需要重新选举，第二则是当 Zookeeper 启动时需要进行系统的 Leader 初始化选举。
+
+![崩溃恢复](images/zookeeper/崩溃恢复.jpg)
 
 #### 初始化选举
 假设我们集群中有3台机器，那也就意味着我们需要两台以上同意（超过半数）。比如这个时候我们启动了 server1 ，它会首先投票给自己，
