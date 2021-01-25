@@ -23,10 +23,10 @@ HBase 更像是一个 multi-dimensional map。
 
 ## <span id="HBase数据模型">HBase数据模型</span>
 **HBase 逻辑结构**  
-![逻辑结构图](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/%E9%80%BB%E8%BE%91%E7%BB%93%E6%9E%84%E5%9B%BE.jpg)  
+![逻辑结构图](images/hbase/逻辑结构图.jpg)  
 
 **HBase 物理存储结构**  
-![物理存储结构图](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/%E7%89%A9%E7%90%86%E5%AD%98%E5%82%A8%E7%BB%93%E6%9E%84.jpg)
+![物理存储结构图](images/hbase/物理存储结构.jpg)
 
 **数据模型**
 1. NameSpace  
@@ -61,7 +61,7 @@ HBase 中通过 row 和 columns 确定的为一个存贮单元称为 cell。每�
 
 ## <span id="HBase架构">HBase架构</span>
 HBase架构图：  
-![HBase架构图](https://img2018.cnblogs.com/blog/1222878/201906/1222878-20190602190004759-235734166.png)
+![HBase架构图](images/hbase/HBase架构图.png)
 
 **角色说明**
 
@@ -100,7 +100,7 @@ HDFS 为 HBase 提供最终的底层数据存储服务，同时为 HBase 提供�
 >master 仅仅维护着 table 和 region 的元数据信息，负载很低。
 
 ## <span id="HBase写流程">HBase写流程</span>
-![HBase写流程](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/HBase%E5%86%99%E6%B5%81%E7%A8%8B.jpg)
+![HBase写流程](images/hbase/HBase写流程.jpg)
 
 1. Client 先访问 zookeeper，获取 hbase:meta 表位于哪个 Region Server；
 2. 访问对应的 Region Server，获取 hbase:meta 表，根据读请求的 namespace:table/rowkey， 
@@ -119,7 +119,7 @@ HDFS 为 HBase 提供最终的底层数据存储服务，同时为 HBase 提供�
 
 2. 服务器端 RegionServer 接收到客户端的写入请求后，首先会反序列化为 Put 对象，然后执行各种检查操作，比如检查region是否是只读、
 memstore 大小是否超过 blockingMemstoreSize 等。检查完成之后，就会执行如下核心操作：
-![服务器端流程图](http://hbasefly.com/wp-content/uploads/2016/03/100.png)  
+![服务器端流程图](images/hbase/服务器端流程图.png)  
    1. 获取行锁、Region更新共享锁： HBase中使用行锁保证对同一行数据的更新都是互斥操作，用以保证更新的原子性；
    2. 开始写事务：获取 write number，用于实现 MVCC(多版本控制，MySQL 中的一个道理)，实现数据的非锁定读，在保证读写一致性的前提下提高读取性能；
    3. 写缓存 memstore：HBase并不会直接将数据落盘，而是先写入缓存，等缓存满足一定大小之后再一起落盘；
@@ -131,17 +131,17 @@ memstore 大小是否超过 blockingMemstoreSize 等。检查完成之后，就�
    8. flush memstore：当写缓存满64M之后，会启动flush线程将数据刷新到硬盘。
 
 **MemStore Flush 数据刷写**  
-![MemStore Flush示意图](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/MemStore%20Flush.jpg) 
+![MemStore Flush示意图](images/hbase/MemStore%20Flush.jpg) 
  
 MemStore 刷写时机：  
-1. **MenStore 占用的内存超过相关阈值**  
+1. **MemStore 占用的内存超过相关阈值**  
 - 如果某个 memstroe 的大小达到了一定的阈值(默认值 128M)，其所在 region 的所有 memstore 都会刷写；每次调用 put、delete 都会去检查这个值。
 - 如果数据增加的很快，某个 memstore 的大小达到了  
 hbase.hregion.memstore.flush.size(默认值 128M) × hbase.hregion.memstore.block.multiplier(默认值 4)  
 （即文件刷写阈值的4倍）
-时，除了触发 MenStore 的 flush 操作外，还会**阻塞所有写入**该 Store 的写操作；
+时，除了触发 MemStore 的 flush 操作外，还会**阻塞所有写入**该 Store 的写操作；
 
-2. **RegionServer 中 MenStore 占用内存总和大于相关阈值**  
+2. **RegionServer 中 MemStore 占用内存总和大于相关阈值**  
 当 region server 中 memstore 的**总大小**达到  
 java_heapsize × hbase.regionserver.global.memstore.size(默认值 0.4) × hbase.regionserver.global.memstore.size.lower.limit(默认值 0.95)  
 region 会按照其所有 memstore 的大小顺序(由大到小)依次进行刷写，直到 region server中所有 memstore 的总大小减小到上述值以下；
@@ -159,7 +159,7 @@ WAL 文件的数量超过某个阈值（默认为30000000），那么也是会�
 5. **手动触发刷写**
 
 ## <span id="HBase读流程">HBase读流程</span>
-![HBase读流程](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/HBase%E8%AF%BB%E6%B5%81%E7%A8%8B.jpg)
+![HBase读流程](images/hbase/HBase读流程.jpg)
 
 1. Client 先访问 zookeeper，获取 hbase:meta 表位于哪个 Region Server；
 2. 访问对应的 Region Server，获取 hbase:meta 表，根据读请求的 namespace:table/rowkey，
@@ -176,7 +176,7 @@ WAL 文件的数量超过某个阈值（默认为30000000），那么也是会�
 由于 memstore 每次刷写都会生成一个新的 HFile，且同一个字段的不同版本(timestamp) 和不同类型(Put/Delete)有可能会分布在不同的 HFile 中，
 因此查询时需要遍历所有的 HFile。**为了减少 HFile 的个数，以及清理掉过期和删除的数据**，会进行 StoreFile Compaction。
 
-![StoreFile Compaction示意图](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/StoreFile%20Compaction.jpg)
+![StoreFile Compaction示意图](images/hbase/StoreFile%20Compaction.jpg)
 
 Compaction 分为两种，分别是 Minor Compaction 和 Major Compaction。
 - Minor Compaction 会将临近的若干个较小的 HFile 合并成一个较大的 HFile，但不会清理过期和删除的数据；
@@ -194,7 +194,7 @@ master 就给这个 region server 发送一个装载请求，把 region 分配�
 默认情况下，每个 Table 起初只有一个 Region，随着数据的不断写入，Region 会自动进 行拆分。刚拆分时，
 两个子 Region 都位于当前的 Region Server，但处于负载均衡的考虑， HMaster 有可能会将某个 Region 转移给其他的 Region Server。
 
-![Region-Split](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/Region%20Split.jpg)
+![Region-Split](images/hbase/Region%20Split.jpg)
 
 **Region Split 时机**：  
 当 1 个 region 中的某个 Store 下所有 StoreFile 的总大小超过 Min(R^2 * "hbase.hregion.memstore.flush.size",hbase.hregion.max.filesize")，
@@ -262,10 +262,10 @@ Observer(观察者) 协处理器类似于关系型数据库中的触发器，当
 以便在对应方法前后执行特定的操作。通常情况下，我们并不会直接实现上面接口，而是继承其 Base 实现类，
 Base 实现类只是简单空实现了接口中的方法，这样我们在实现自定义的协处理器时，就不必实现所有方法，只需要重写必要方法即可。
 
-![观察者协处理器实现类](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/%E8%A7%82%E5%AF%9F%E8%80%85%E5%8D%8F%E5%A4%84%E7%90%86%E5%99%A8%E5%AE%9E%E7%8E%B0.jpg)
+![观察者协处理器实现类](images/hbase/观察者协处理器实现.jpg)
 
 4. 执行流程  
-![观察者协处理器执行流程](https://raw.githubusercontent.com/hongyidashi/big-data-study/master/note/images/hbase/%E8%A7%82%E5%AF%9F%E8%80%85%E5%8D%8F%E5%A4%84%E7%90%86%E5%99%A8%E5%A4%84%E7%90%86%E6%B5%81%E7%A8%8B.jpg)
+![观察者协处理器执行流程](images/hbase/观察者协处理器处理流程.jpg)
 
 - 客户端发出 put 请求；
 - 该请求被分派给合适的 RegionServer 和 region；
