@@ -27,7 +27,7 @@ Kafka 是一个分布式的基于发布/订阅模式的消息队列(Message Queu
 
 ## <span id="Kafka基础架构">Kafka基础架构</span>
 Kafka基础架构：  
-![Kafka基础架构](http://cdn.17coding.info/WeChat%20Screenshot_20190325215237.png)
+![Kafka基础架构](images/kafka/kafka基础架构.png)
 
 **Messages And Batches**  
 Kafka 的基本数据单元被称为 message(消息)，为减少网络开销，提高效率，多个消息会被放入同一批次 (Batch) 中后再写入。
@@ -56,7 +56,7 @@ kafka 提供了副本机制，一个 topic 的每个分区都有若干个副本�
 
 ## <span id="工作流程及文件存储机制概述">工作流程及文件存储机制概述</span>
 
-![工作流程图1](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1596079588949&di=cb3f76980e99de29a54d7474700f7a9b&imgtype=0&src=http%3A%2F%2Fimg.8ym8.com%2Fwp-content%2Fuploads%2F2019%2F02%2F1503038490224_3768_1503038490469.png)
+![工作流程图1](images/kafka/工作流程图1.png)
 
 Kafka 中消息是以 topic 进行分类的，生产者生产消息，消费者消费消息，都是面向 topic 的，其本质就是一个目录，
 而 topic 是由一些Partition Logs(分区日志)组成。  
@@ -81,10 +81,10 @@ Kafka文件存储机制：
 看完上面的可能还是8够了解 kafka 的工作流程，这里详细再讲一下。   
 
 ### <span id="发送数据">发送数据</span>
-![发送数据](http://cdn.17coding.info/WeChat%20Screenshot_20190325215252.png)
+![发送数据](images/kafka/发送数据.png)
 发送的流程就在图中已经说明了，就不单独在文字列出来了！需要注意的一点是，消息写入leader后，follower 是主动的去 leader 进行同步的！
 producer 采用 push 模式将数据发布到 broker，每条消息追加到分区中，顺序写入磁盘，所以保证同一分区内的数据是有序的！写入示意图如下：
-![数据写入topic示意图](http://cdn.17coding.info/WeChat%20Screenshot_20190325215312.png)
+![数据写入topic示意图](images/kafka/数据写入topic示意图.png)
 
 ### <span id="分区策略">分区策略</span>
 上面提到数据会写入到不同的分区，那么问题来了，kafka 为什么要做分区呐？
@@ -128,7 +128,7 @@ Leader 发生故障之后，就会从 ISR 中选举新的 leader。
 
 **故障处理细节**  
 Log文件中的HW和LEO：  
-![Log文件中的HW和LEO](https://img-blog.csdnimg.cn/20200506171910881.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3FxXzE2MTQ2MTAz,size_16,color_FFFFFF,t_70)
+![Log文件中的HW和LEO](images/kafka/Log文件中的HW和LEO.png)
 
 LEO：指的是每个副本最大的 offset；  
 HW：指的是消费者能见到的最大的 offset，ISR 队列中最小的 LEO。
@@ -151,7 +151,7 @@ Producer 将数据写入 kafka 后，集群就需要对数据进行保存了。
 每个 partition 的文件夹下面会有多组 segment 文件，每组 segment 文件又包含 .index 文件、.log 文件、.timeindex 文件（早期版本中没有）三个文件，
 log 文件就实际是存储 message 的地方，而 index 和 timeindex 文件为索引文件，用于检索消息。
 
-![partition结构图](http://cdn.17coding.info/WeChat%20Screenshot_20190325215337.png)
+![partition结构图](images/kafka/partition结构图.png)
 
 如上图，这个 partition 有三组 segment 文件，每个 log 文件的大小是一样的，但是存储的 message 数量是不一定相等的（每条的 message 大小不一致）。
 文件的命名是以该 segment 最小 offset 来命名的，如 000.index 存储 offset 为 0~368795 的消息，kafka 就是利用分段+索引的方式来解决查找效率的问题。
@@ -175,7 +175,7 @@ log 文件就实际是存储 message 的地方，而 index 和 timeindex 文件�
 多个消费者可以组成一个消费者组（consumer group），每个消费者组都有一个组id！同一个消费组者的消费者可以消费同一topic下不同分区的数据，
 但是不会组内多个消费者消费同一分区的数据！！！可能有点绕。看下图：  
 
-![消费者组消费不同分区消息](http://cdn.17coding.info/WeChat%20Screenshot_20190325215326.png)
+![消费者组消费不同分区消息](images/kafka/消费者组消费不同分区消息.png)
 
 图示是消费者组内的消费者小于 partition 数量的情况，所以会出现某个消费者消费多个 partition 数据的情况，
 消费的速度也就不及只处理一个 partition 的消费者的处理速度！如果是消费者组的消费者多于 partition 的数量，
@@ -211,7 +211,7 @@ RoundRobin 策略的工作原理：将所有主题的分区组成 TopicAndPartit
 **offset**  
 前面曾多次提到 segment 和 offset，查找消息的时候是如何利用 segment+offset 配合查找的呢？
 现以需要查找一个 offset 为 368801 的 message 的过程为例，先看看下面的图：  
-![图片裂开就别看了](http://cdn.17coding.info/WeChat%20Screenshot_20190325215338.png)  
+![图片裂开就别看了](images/kafka/offset查找过程.png)  
 
 1. 先找到 offset 的 368801message 所在的 segment 文件（利用二分法查找），这里找到的就是在第二个 segment 文件；
 2. 打开找到的 segment 中的 .index 文件（也就是 368796.index 文件，该文件起始偏移量为 368796+1，
