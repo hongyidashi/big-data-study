@@ -35,8 +35,7 @@
 
 ## <span id="HDFS">HDFS</span>
 HDFS （Hadoop Distributed File System）是 Hadoop 下的**分布式文件系统**，具有高容错、高吞吐量等特性，可以部署在低成本的硬件上。
-![HDFS架构](https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1595347800725&di=2dfad87fd2b4e7e3f5d72df915008993&imgtype=0&src=http%3A%2F%2Fimg.mukewang.com%2F5a1e2d4a00015ec112800720.png)
-使用场景：适合一次写入多次读出的场景，不支持文件的修改！
+适用场景：适合一次写入多次读出的场景，不支持文件的修改！
 
 ### <span id="HDFS设计原则">HDFS设计原则</span>
 1. 文件以块(block)方式存储
@@ -55,7 +54,8 @@ HDFS （Hadoop Distributed File System）是 Hadoop 下的**分布式文件系�
 - 管理数据块(Block)映射信息
 - 配置副本策略
 - 处理客户端读写请求
-    
+  
+
 **文件包括：**  
 - fsimage:元数据镜像文件。存储某一时段NameNode内存元数据信息。
 - edits:操作日志文件。
@@ -276,7 +276,7 @@ Hadoop序列化特点：
 在用户编写 map() 函数中，当数据处理完成后，一般会调用 OutputCollector.collect() 输出结果。
 在该函数内部，它会将生成的 key/value 分区（调用Partitioner），并写入一个环形内存缓冲区中Map的输出结果是由 collector 处理的，
 每个 MapTask 不断地将键值对输出到环形缓冲区中。
-  
+
 **环形缓冲区**  
 1. 内存中构造的一个环形数据结构，使用环形数据结构是为了更有效地使用内存空间，在内存中放置尽可能多的数据；
 2. 数据结构其实就是个字节数组，里面不光放置了数据，还放置了一些索引数据；
